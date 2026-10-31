@@ -9,6 +9,7 @@ Adapted from SmartMailFlow (https://github.com/Skittel/smartmailflow).
 """
 import dns.exception
 import dns.resolver
+import dns.reversename
 
 
 def classify(exc):
@@ -56,6 +57,14 @@ class DNSClient:
             self.cache[key] = self._lookup(*key)
         return self.cache[key]
 
+    def reverse(self, ip):
+        """PTR names of an IP address (without trailing dot); empty list if none or invalid."""
+        try:
+            name = dns.reversename.from_address(ip).to_text()
+        except Exception:  # noqa: BLE001
+            return []
+        return [n.rstrip(".") for n in self.query(name, "PTR")[0]]
+
 
 class StaticDNS:
     """Fixed answers for tests: {("name", "TXT"): ["..."]}; missing entries are NXDOMAIN."""
@@ -69,3 +78,6 @@ class StaticDNS:
             value = self.records[key]
             return (value, None) if isinstance(value, list) else ([], value)
         return [], "nxdomain"
+
+    def reverse(self, ip):
+        return self.records.get((ip, "PTR"), [])

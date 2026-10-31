@@ -19,11 +19,10 @@ virtual_mailbox_domains = ravenkeep.cloud, customer.ravenkeep.cloud
 virtual_mailbox_maps = static:ok
 virtual_transport = ravenkeep
 ravenkeep_destination_recipient_limit = 1
-# Port 25: never relay; sender domain allow-list via policy service
+# Port 25: never relay. Every message for our domains is accepted and classified by rk-deliver (E-007)
 smtpd_helo_required = yes
 smtpd_relay_restrictions = permit_mynetworks, reject_unauth_destination
-smtpd_recipient_restrictions = reject_non_fqdn_recipient, reject_unauth_destination, check_policy_service unix:private/rk-policy
-rk-policy_time_limit = 3600
+smtpd_recipient_restrictions = reject_non_fqdn_recipient, reject_unauth_destination
 # SASL via Dovecot (only offered on 465/587, see master.cf)
 smtpd_sasl_type = dovecot
 smtpd_sasl_path = private/auth
@@ -33,3 +32,5 @@ smtpd_sasl_authenticated_header = no
 smtpd_client_connection_rate_limit = 60
 smtpd_client_message_rate_limit = 120
 smtpd_client_auth_rate_limit = 20
+# Outgoing: prefer IPv4 for better deliverability
+smtp_address_preference = ipv4

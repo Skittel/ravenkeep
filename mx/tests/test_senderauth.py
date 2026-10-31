@@ -75,12 +75,33 @@ class SenderAuthTest(unittest.TestCase):
         self.assertEqual(result["verdict"], "rejected")
 
 
-class DomainListTest(unittest.TestCase):
-    def test_parent_domain_covers_subdomain(self):
-        self.assertTrue(intake.domain_in_list("mail.statuscake.com", {"statuscake.com"}))
-        self.assertTrue(intake.domain_in_list("statuscake.com", {"statuscake.com"}))
-        self.assertFalse(intake.domain_in_list("evilstatuscake.com", {"statuscake.com"}))
-        self.assertFalse(intake.domain_in_list("com", {"com"}))
+class SenderListTest(unittest.TestCase):
+    def test_domain_covers_subdomains_only_on_label_boundary(self):
+        self.assertTrue(intake.address_matches("a@mail.statuscake.com", "statuscake.com"))
+        self.assertTrue(intake.address_matches("a@statuscake.com", "statuscake.com"))
+        self.assertFalse(intake.address_matches("a@evilstatuscake.com", "statuscake.com"))
+        self.assertFalse(intake.address_matches("a@example.com", "com"))
+        self.assertFalse(intake.address_matches("", "statuscake.com"))
+
+    def test_full_address_matches_exactly(self):
+        self.assertTrue(intake.address_matches("<Alerts@Plesk.example>", "alerts@plesk.example"))
+        self.assertFalse(intake.address_matches("other@plesk.example", "alerts@plesk.example"))
+
+    def test_match_target_selects_envelope_or_header(self):
+        entries = [("bounce.example", "envelope"), ("alerts@monitor.example", "header")]
+        self.assertEqual(intake.find_match(entries, "x@bounce.example", "")["target"], "envelope")
+        self.assertEqual(intake.find_match(entries, "x@other.example", "alerts@monitor.example")["target"], "header")
+        self.assertIsNone(intake.find_match(entries, "alerts@monitor.example", "x@bounce.example"))
+
+    def test_list_file_parsing(self):
+        import tempfile
+        with tempfile.NamedTemporaryFile("w", delete=False) as fh:
+            fh.write("# comment\nStatusCake.com\nalerts@plesk.example header  # note\nfoo.example bogus\n\n")
+        try:
+            self.assertEqual(intake.read_sender_list(fh.name), [("statuscake.com", "envelope"),
+                             ("alerts@plesk.example", "header"), ("foo.example", "envelope")])
+        finally:
+            os.unlink(fh.name)
 
 
 if __name__ == "__main__":

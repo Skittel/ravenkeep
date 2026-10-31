@@ -1,4 +1,9 @@
-"""Shared helpers for the MX node: configuration paths, sender domain lists and the local spool.
+"""Shared helpers for the MX node: configuration paths, sender lists and the local spool.
+
+Sender lists (/etc/ravenkeep/allowed-senders, /etc/ravenkeep/blocked-senders), one entry per line:
+    <pattern> [envelope|header]
+pattern is a domain (also matches subdomains) or a full address; the second column selects
+which sender is compared: envelope sender (MAIL FROM, default) or the visible From header.
 
 Spool layout (one entry per message and recipient):
     <spool>/tmp/   files being written
@@ -14,33 +19,47 @@ import uuid
 CONFIG_DIR = os.environ.get("RAVENKEEP_CONFIG_DIR", "/etc/ravenkeep")
 DATA_DIR = os.environ.get("RAVENKEEP_DATA_DIR", "/var/lib/ravenkeep")
 SPOOL_DIR = os.path.join(DATA_DIR, "spool")
-ATTEMPTS_FILE = os.path.join(DATA_DIR, "attempts", "attempts.jsonl")
-ALLOWED_FILE = os.path.join(CONFIG_DIR, "allowed-sender-domains")
-BLOCKED_FILE = os.path.join(CONFIG_DIR, "blocked-sender-domains")
+ALLOWED_FILE = os.path.join(CONFIG_DIR, "allowed-senders")
+BLOCKED_FILE = os.path.join(CONFIG_DIR, "blocked-senders")
 NODE_NAME = os.environ.get("RAVENKEEP_NODE", socket.getfqdn())
+MATCH_TARGETS = ("envelope", "header")
 
 
-def read_domain_list(path):
-    """One domain per line; '#' starts a comment. Missing file = empty list."""
+def read_sender_list(path):
+    """Return a list of (pattern, target). Missing file = empty list; invalid targets fall back to envelope."""
+    entries = []
     try:
         with open(path, encoding="utf-8") as fh:
-            return {line.split("#", 1)[0].strip().lower().rstrip(".") for line in fh} - {""}
+            for line in fh:
+                parts = line.split("#", 1)[0].split()
+                if not parts:
+                    continue
+                target = parts[1].lower() if len(parts) > 1 and parts[1].lower() in MATCH_TARGETS else "envelope"
+                entries.append((parts[0].lower().rstrip("."), target))
     except OSError:
-        return set()
+        pass
+    return entries
 
 
-def domain_in_list(domain, domains):
-    """True if the domain or one of its parent domains is listed (statuscake.com covers mail.statuscake.com)."""
-    labels = domain.lower().rstrip(".").split(".")
-    return any(".".join(labels[i:]) in domains for i in range(len(labels) - 1))
+def address_matches(address, pattern):
+    """Full address: exact match. Domain: the address domain or one of its parents equals the pattern."""
+    address = (address or "").lower().strip("<>")
+    if not address:
+        return False
+    if "@" in pattern:
+        return address == pattern
+    domain = address.rsplit("@", 1)[-1].rstrip(".")
+    labels = domain.split(".")
+    return any(".".join(labels[i:]) == pattern for i in range(len(labels) - 1))
 
 
-def log_attempt(record):
-    """Append metadata of a refused delivery attempt (no message content) as one JSON line."""
-    os.makedirs(os.path.dirname(ATTEMPTS_FILE), exist_ok=True)
-    record = {"time": time.strftime("%Y-%m-%dT%H:%M:%S%z"), "node": NODE_NAME, **record}
-    with open(ATTEMPTS_FILE, "a", encoding="utf-8") as fh:
-        fh.write(json.dumps(record, ensure_ascii=False) + "\n")
+def find_match(entries, envelope_sender, header_from):
+    """First list entry matching the selected sender, or None."""
+    for pattern, target in entries:
+        sender = envelope_sender if target == "envelope" else header_from
+        if address_matches(sender, pattern):
+            return {"pattern": pattern, "target": target}
+    return None
 
 
 def _write_synced(path, data):

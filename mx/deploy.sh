@@ -8,11 +8,12 @@ id ravenkeep >/dev/null 2>&1 || useradd --system --home-dir /var/lib/ravenkeep -
 install -d -m 755 /opt/ravenkeep "$DEST" "$DEST/bin" "$DEST/ravenkeep_mx"
 install -m 755 "$SRC"/bin/rk-* "$DEST/bin/"
 install -m 644 "$SRC"/ravenkeep_mx/*.py "$DEST/ravenkeep_mx/"
-install -d -m 750 -o ravenkeep -g ravenkeep /var/lib/ravenkeep /var/lib/ravenkeep/spool /var/lib/ravenkeep/spool/tmp /var/lib/ravenkeep/spool/new /var/lib/ravenkeep/attempts
+install -d -m 750 -o ravenkeep -g ravenkeep /var/lib/ravenkeep /var/lib/ravenkeep/spool /var/lib/ravenkeep/spool/tmp /var/lib/ravenkeep/spool/new
 install -d -m 755 /etc/ravenkeep
-for f in allowed-sender-domains blocked-sender-domains; do
-  [ -f /etc/ravenkeep/$f ] || printf '# One domain per line (subdomains included). Maintained by the Ravenkeep web app.\n' > /etc/ravenkeep/$f
+for f in allowed-senders blocked-senders; do
+  [ -f /etc/ravenkeep/$f ] || printf '# <domain or address> [envelope|header]  (domain includes subdomains, default envelope)\n# Maintained by the Ravenkeep web app.\n' > /etc/ravenkeep/$f
 done
+rm -f /opt/ravenkeep/mx/bin/rk-policy /etc/ravenkeep/allowed-sender-domains /etc/ravenkeep/blocked-sender-domains
 [ -f /etc/ravenkeep/smtp-users ] || : > /etc/ravenkeep/smtp-users
 chown root:dovecot /etc/ravenkeep/smtp-users; chmod 640 /etc/ravenkeep/smtp-users
 
@@ -28,6 +29,13 @@ cat "$SRC/config/postfix-master.cf" >> "$MC"
 [ -f /etc/dovecot/dovecot.conf.dist ] || cp /etc/dovecot/dovecot.conf /etc/dovecot/dovecot.conf.dist
 install -m 644 "$SRC/config/dovecot.conf" /etc/dovecot/dovecot.conf
 doveconf -n >/dev/null
+
+# fail2ban (SSH + SMTP AUTH brute force)
+if command -v fail2ban-client >/dev/null; then
+  ADMIN=$( [ -f /etc/ravenkeep/admin-networks ] && grep -vE '^\s*(#|$)' /etc/ravenkeep/admin-networks | tr '\n' ' ' )
+  sed "s|^ignoreip = .*|& ${ADMIN}|" "$SRC/config/fail2ban-jail.conf" > /etc/fail2ban/jail.d/ravenkeep.conf
+  systemctl restart fail2ban
+fi
 
 postfix check
 systemctl restart dovecot
