@@ -43,4 +43,7 @@ Documentation is maintained in the project wiki.
 
 ## License
 
-TBD
+Free for private and commercial use, modification and redistribution
+(MIT-style). The only condition beyond the MIT terms: projects that use or
+are derived from Ravenkeep must mention Ravenkeep with a link to
+https://github.com/Skittel/ravenkeep in their README. See [LICENSE](LICENSE).
