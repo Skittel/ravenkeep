@@ -35,6 +35,7 @@ class Filters extends BaseFilters
         'pagecache'     => PageCache::class,
         'performance'   => PerformanceMetrics::class,
         'rkheaders'     => \App\Filters\SecurityHeaders::class,
+        'rklogin'       => \App\Filters\RequireLogin::class,
     ];
 
     /**
@@ -74,6 +75,7 @@ class Filters extends BaseFilters
     public array $globals = [
         'before' => [
             // 'honeypot',
+            'rklogin' => ['except' => ['auth/*']], // sign-in and role check first
             'csrf',
             // 'invalidchars',
         ],

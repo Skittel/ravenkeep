@@ -29,4 +29,15 @@ class Services extends BaseService
      *     return new \CodeIgniter\Example();
      * }
      */
+    /**
+     * Microsoft Entra ID client (replaceable in tests via Services::injectMock()).
+     */
+    public static function entraClient(bool $getShared = true): \App\Libraries\Auth\EntraClient
+    {
+        if ($getShared) {
+            return static::getSharedInstance('entraClient');
+        }
+
+        return new \App\Libraries\Auth\EntraClient(config('Entra'));
+    }
 }

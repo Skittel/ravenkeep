@@ -13,7 +13,7 @@ $post = static fn (string $url, string $label, string $class = '', ?string $conf
     <section class="card">
         <div class="card-head">
             <h1><?= lang('Rules.title') ?></h1>
-            <a class="button button-primary" href="<?= site_url('rules/new') ?>"><?= lang('Rules.new') ?></a>
+            <a class="button button-primary write-only" href="<?= site_url('rules/new') ?>"><?= lang('Rules.new') ?></a>
         </div>
         <p class="hint"><?= lang('Rules.hint') ?></p>
         <?php if ($backlog > 0): ?>

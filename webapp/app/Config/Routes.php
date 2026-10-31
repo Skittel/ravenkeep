@@ -31,3 +31,7 @@ $routes->post('settings/domains', 'Settings::addDomain');
 $routes->post('settings/domains/(:num)/delete', 'Settings::deleteDomain/$1');
 $routes->post('settings/networks', 'Settings::addNetwork');
 $routes->post('settings/networks/(:num)/delete', 'Settings::deleteNetwork/$1');
+$routes->get('auth/login', 'Auth::login');
+$routes->get('auth/callback', 'Auth::callback');
+$routes->get('auth/logout', 'Auth::logout');
+$routes->get('auth/signed-out', 'Auth::signedOut');

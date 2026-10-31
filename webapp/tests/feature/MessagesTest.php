@@ -44,6 +44,8 @@ final class MessagesTest extends CIUnitTestCase
         $this->db->table('messages')->insert($base + ['spool_id' => 'b', 'status' => 'pending', 'subject' => 'Unknown <b>sender</b>',
             'envelope_sender' => 'spam@unknown.example', 'reasons' => '["SPF none for unknown.example"]']);
         $this->pendingId = $this->db->insertID();
+
+        $this->withSession(['user' => ['oid' => 'o', 'name' => 'Test', 'username' => 't@example.org', 'role' => 'ro', 'login_at' => time()]]);
     }
 
     public function testListShowsMessagesAndEscapesSubject(): void

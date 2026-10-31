@@ -6,6 +6,7 @@
  */
 $active = $active ?? 'messages';
 $search = $search ?? [];
+$user   = session('user');
 ?>
 <!DOCTYPE html>
 <html lang="<?= esc(service('request')->getLocale()) ?>">
@@ -16,7 +17,7 @@ $search = $search ?? [];
     <link rel="stylesheet" href="<?= base_url('assets/app.css') ?>">
     <script src="<?= base_url('assets/app.js') ?>" defer></script>
 </head>
-<body>
+<body class="<?= ($user['role'] ?? '') === 'rw' ? 'role-rw' : 'role-ro' ?>">
 <div class="app <?= $active === 'messages' ? 'app-mail' : 'app-page' ?>">
     <header class="topbar">
         <a class="brand" href="<?= site_url('/') ?>"><?= lang('Ui.appName') ?></a>
@@ -34,6 +35,13 @@ $search = $search ?? [];
             <?php endif ?>
             <input type="search" name="q" value="<?= esc($search['q'] ?? '', 'attr') ?>" placeholder="<?= esc(lang('Ui.search'), 'attr') ?>" autocomplete="off">
         </form>
+        <?php if ($user): ?>
+            <div class="userbox" title="<?= esc($user['username'], 'attr') ?>">
+                <span><?= esc($user['name']) ?></span>
+                <span class="role"><?= $user['role'] === 'rw' ? lang('Auth.roleRw') : lang('Auth.roleRo') ?></span>
+                <a href="<?= site_url('auth/logout') ?>"><?= lang('Auth.signOut') ?></a>
+            </div>
+        <?php endif ?>
     </header>
     <?php foreach (['success', 'error'] as $type): ?>
         <?php if ($msg = session()->getFlashdata($type)): ?>

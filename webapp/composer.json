@@ -12,6 +12,7 @@
     "require": {
         "php": "^8.2",
         "codeigniter4/framework": "^4.7",
+        "firebase/php-jwt": "^7.2",
         "zbateson/mail-mime-parser": "^4.0"
     },
     "require-dev": {
