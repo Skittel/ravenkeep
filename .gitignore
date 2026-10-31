@@ -1,0 +1,9 @@
+# Secrets and local configuration – never commit
+.env
+*.env
+secrets/
+# Dependencies / build
+/vendor/
+/writable/
+__pycache__/
+*.pyc
