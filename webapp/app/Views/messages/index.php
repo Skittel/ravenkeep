@@ -8,6 +8,8 @@
  * @var int $pages
  * @var string|null $pane
  * @var int $selected
+ * @var array<int, list<array>> $tags
+ * @var array<string, array<string, int>> $tagTree
  */
 $statusLabels = [
     'accepted' => lang('Ui.statusAccepted'),
@@ -29,12 +31,37 @@ $statusLabels = [
                     <span class="dot dot-<?= $status ?>"></span><?= esc($label) ?> <span class="count"><?= $counts[$status] ?></span></a></li>
             <?php endforeach ?>
         </ul>
-        <h2><?= lang('Ui.filters') ?></h2>
-        <p class="hint"><?= lang('Ui.filterTreeHint') ?></p>
+        <h2><?= lang('Rules.tagsTitle') ?></h2>
+        <?php if ($tagTree === []): ?>
+            <p class="hint"><?= lang('Rules.noTagsYet') ?></p>
+        <?php endif ?>
+        <ul class="tree">
+            <?php foreach ($tagTree as $type => $names): ?>
+                <li>
+                    <?php if ($type !== ''): ?>
+                        <?php $typeTag = $type . ':*'; ?>
+                        <a href="<?= rk_query($filter, rk_tag_toggle($filter, $typeTag)) ?>" class="tree-type <?= in_array($typeTag, $filter['tag'] ?? [], true) ? 'active' : '' ?>"><?= esc($type) ?> <span class="count"><?= array_sum($names) ?></span></a>
+                    <?php endif ?>
+                    <ul>
+                        <?php foreach ($names as $name => $n): ?>
+                            <li><a href="<?= rk_query($filter, rk_tag_toggle($filter, $name)) ?>" class="<?= in_array($name, $filter['tag'] ?? [], true) ? 'active' : '' ?>">
+                                <span class="<?= rk_tag_class($name) ?> tag-dot"></span><?= esc(str_contains($name, ':') ? explode(':', $name, 2)[1] : $name) ?> <span class="count"><?= $n ?></span></a></li>
+                        <?php endforeach ?>
+                    </ul>
+                </li>
+            <?php endforeach ?>
+        </ul>
     </nav>
 
     <main class="main">
         <section class="list" id="message-list">
+            <?php if (! empty($filter['tag'])): ?>
+                <div class="active-filters"><?= lang('Rules.filteredBy') ?>
+                    <?php foreach ($filter['tag'] as $tag): ?>
+                        <a class="<?= rk_tag_class($tag) ?>" href="<?= rk_query($filter, rk_tag_toggle($filter, $tag)) ?>" title="<?= esc(lang('Rules.removeFilter'), 'attr') ?>"><?= esc($tag) ?> ×</a>
+                    <?php endforeach ?>
+                </div>
+            <?php endif ?>
             <table>
                 <thead>
                 <tr>
@@ -52,7 +79,7 @@ $statusLabels = [
                         <td class="col-status"><span class="dot dot-<?= esc($m['status'], 'attr') ?>" title="<?= esc($statusLabels[$m['status']] ?? $m['status'], 'attr') ?>"></span></td>
                         <td class="col-from"><?= esc($m['mode'] === 'auth' ? $m['sasl_username'] : ($m['header_from'] ?: $m['envelope_sender'])) ?></td>
                         <td class="col-to"><?= esc($m['envelope_recipient']) ?></td>
-                        <td class="col-subject"><a href="<?= rk_query($filter, ['id' => $m['id']]) ?>"><?= esc($m['subject'] ?? '') ?: '<em>' . lang('Ui.noSubject') . '</em>' ?></a></td>
+                        <td class="col-subject"><?php foreach ($tags[(int) $m['id']] ?? [] as $tg): ?><span class="<?= rk_tag_class($tg['name']) ?>"><?= esc($tg['name']) ?></span><?php endforeach ?><a href="<?= rk_query($filter, ['id' => $m['id']]) ?>"><?= esc($m['subject'] ?? '') ?: '<em>' . lang('Ui.noSubject') . '</em>' ?></a></td>
                     </tr>
                 <?php endforeach ?>
                 <?php if ($messages === []): ?>

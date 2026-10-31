@@ -8,6 +8,7 @@
  * @var array|null $auth
  * @var App\Libraries\MessageReader|null $reader
  * @var string|null $error
+ * @var list<array> $tags
  */
 $statusLabels = [
     'accepted' => lang('Ui.statusAccepted'),
@@ -46,6 +47,16 @@ $html = $reader?->htmlBody();
         <span class="badge badge-<?= esc($m['status'], 'attr') ?>"><?= esc($statusLabels[$m['status']] ?? $m['status']) ?></span>
         <a class="button" href="<?= site_url('messages/' . $m['id'] . '/eml') ?>"><?= lang('Ui.downloadEml') ?></a>
     </header>
+
+    <div class="message-tags">
+        <?php foreach ($tags as $tg): ?>
+            <span class="<?= rk_tag_class($tg['name']) ?>" title="<?= esc($tg['source'] === 'manual' ? lang('Rules.manual') : lang('Rules.byRule', [$tg['rule_name'] ?? '?']), 'attr') ?>"><?= esc($tg['name']) ?><?php if ($tg['source'] === 'manual'): ?><?= form_open('messages/' . $m['id'] . '/tags/' . $tg['id'] . '/delete', ['class' => 'inline tag-remove']) ?><button type="submit" title="<?= esc(lang('Rules.removeTag'), 'attr') ?>">×</button><?= form_close() ?><?php endif ?></span>
+        <?php endforeach ?>
+        <?= form_open('messages/' . $m['id'] . '/tags', ['class' => 'inline tag-add']) ?>
+            <input type="text" name="tag" maxlength="64" placeholder="<?= esc(lang('Rules.addTag'), 'attr') ?>" required>
+        <?= form_close() ?>
+        <?php if ($m['status'] !== 'accepted'): ?><span class="hint"><?= lang('Rules.onlyAccepted') ?></span><?php endif ?>
+    </div>
 
     <div class="facts">
         <table class="kv">

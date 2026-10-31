@@ -5,6 +5,7 @@ namespace App\Commands;
 use App\Libraries\Collector\Collector;
 use App\Libraries\Collector\LocalSpoolTransport;
 use App\Libraries\Nodes\NodeConfigSync;
+use App\Libraries\Rules\RuleRunner;
 use CodeIgniter\CLI\BaseCommand;
 use CodeIgniter\CLI\CLI;
 use Config\Database;
@@ -58,6 +59,12 @@ class Collect extends BaseCommand
             }
 
             $db->table('nodes')->where('id', $node['id'])->update($update);
+        }
+
+        // Apply the rules to new messages and, after rule changes, re-evaluate older ones in batches
+        $processed = (new RuleRunner($db, $config->archivePath))->processBatch();
+        if ($processed > 0) {
+            CLI::write("rules: {$processed} messages evaluated");
         }
 
         // Deliver pending config changes and read back what the nodes applied

@@ -22,6 +22,7 @@ $search = $search ?? [];
         <a class="brand" href="<?= site_url('/') ?>"><?= lang('Ui.appName') ?></a>
         <nav class="mainnav">
             <a href="<?= site_url('/') ?>" class="<?= $active === 'messages' ? 'active' : '' ?>"><?= lang('Senders.navMessages') ?></a>
+            <a href="<?= site_url('rules') ?>" class="<?= $active === 'rules' ? 'active' : '' ?>"><?= lang('Rules.nav') ?></a>
             <a href="<?= site_url('senders') ?>" class="<?= $active === 'senders' ? 'active' : '' ?>"><?= lang('Senders.nav') ?></a>
             <a href="<?= site_url('nodes') ?>" class="<?= $active === 'nodes' ? 'active' : '' ?>"><?= lang('Senders.navNodes') ?></a>
         </nav>

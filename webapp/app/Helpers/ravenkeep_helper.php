@@ -53,3 +53,24 @@ if (! function_exists('rk_query')) {
         return site_url('/') . ($params === [] ? '' : '?' . http_build_query($params));
     }
 }
+
+if (! function_exists('rk_tag_class')) {
+    /** CSS class for a tag chip: the colour depends on the tag type (prefix before ":"). */
+    function rk_tag_class(string $name): string
+    {
+        $type = str_contains($name, ':') ? explode(':', $name, 2)[0] : '';
+
+        return 'tag tag-c' . ($type === '' ? 0 : (crc32($type) % 7) + 1);
+    }
+}
+
+if (! function_exists('rk_tag_toggle')) {
+    /** Filter parameters with the tag added or removed (sidebar tree / chips). */
+    function rk_tag_toggle(array $filter, string $tag): array
+    {
+        $tags = $filter['tag'] ?? [];
+        $tags = in_array($tag, $tags, true) ? array_values(array_diff($tags, [$tag])) : [...$tags, $tag];
+
+        return ['tag' => $tags ?: null, 'page' => null, 'id' => null];
+    }
+}

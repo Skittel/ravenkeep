@@ -3,9 +3,13 @@
 namespace App\Controllers;
 
 use App\Libraries\MessageReader;
+use App\Libraries\Rules\RuleRunner;
+use App\Libraries\Rules\TagName;
 use App\Models\MessageModel;
 use CodeIgniter\Exceptions\PageNotFoundException;
+use CodeIgniter\HTTP\RedirectResponse;
 use CodeIgniter\HTTP\ResponseInterface;
+use InvalidArgumentException;
 use RuntimeException;
 
 /**
@@ -22,6 +26,7 @@ class Messages extends BaseController
             'status' => $this->request->getGet('status'),
             'q'      => $this->request->getGet('q'),
         ];
+        $filter['tag'] = MessageModel::tagFilter(['tag' => $this->request->getGet('tag')]) ?: null;
         $page   = max(1, (int) $this->request->getGet('page'));
         $model  = new MessageModel();
 
@@ -39,6 +44,8 @@ class Messages extends BaseController
             'filter'   => $filter + ['page' => $page > 1 ? $page : null],
             'messages' => $messages,
             'counts'   => (new MessageModel())->countsByStatus(),
+            'tags'     => (new MessageModel())->tagsFor(array_column($messages, 'id')),
+            'tagTree'  => (new MessageModel())->tagTree(),
             'total'    => $total,
             'page'     => $page,
             'pages'    => $pages,
@@ -116,7 +123,37 @@ class Messages extends BaseController
             'auth'    => json_decode($message['auth_details'] ?? 'null', true),
             'reader'  => $reader,
             'error'   => $error,
+            'tags'    => (new MessageModel())->tagsFor([$id])[$id] ?? [],
         ]);
+    }
+
+    /** Add a manual tag; the rules are re-applied right away (rules may depend on it). */
+    public function addTag(int $id): RedirectResponse
+    {
+        $this->find($id);
+
+        try {
+            $name   = TagName::normalize((string) $this->request->getPost('tag'));
+            $runner = new RuleRunner(db_connect(), config('Ravenkeep')->archivePath);
+            $tagId  = $runner->tagId($name);
+            db_connect()->query('INSERT INTO message_tags (message_id, tag_id, source) VALUES (?, ?, ?) '
+                . "ON DUPLICATE KEY UPDATE source = 'manual', rule_id = NULL", [$id, $tagId, 'manual']);
+            $runner->processMessage($id);
+        } catch (InvalidArgumentException) {
+            session()->setFlashdata('error', lang('Rules.invalid_tag'));
+        }
+
+        return redirect()->to(site_url('/') . '?id=' . $id);
+    }
+
+    /** Remove a manual tag (rule tags disappear only by changing the rule). */
+    public function removeTag(int $id, int $tagId): RedirectResponse
+    {
+        $this->find($id);
+        db_connect()->table('message_tags')->where(['message_id' => $id, 'tag_id' => $tagId, 'source' => 'manual'])->delete();
+        (new RuleRunner(db_connect(), config('Ravenkeep')->archivePath))->processMessage($id);
+
+        return redirect()->to(site_url('/') . '?id=' . $id);
     }
 
     private function find(int $id): array

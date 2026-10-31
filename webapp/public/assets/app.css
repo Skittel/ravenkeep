@@ -114,3 +114,43 @@ button.button { cursor: pointer; font: inherit; font-size: 12px; }
 .kv.quick code { margin-right: 8px; }
 .kv.quick form.inline button { margin: 2px 0; }
 code { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 12px; }
+
+/* --- Tags and rules (0.1.6) --- */
+.tag { display: inline-block; padding: 1px 7px; margin: 0 4px 2px 0; border-radius: 10px; font-size: 11px; line-height: 16px;
+       border: 1px solid; white-space: nowrap; vertical-align: middle; }
+a.tag:hover { filter: brightness(.95); }
+.tag-c0 { background: #f1f3f5; border-color: #d5d9de; color: #3d4652; }
+.tag-c1 { background: #e7f0ff; border-color: #b9d0fb; color: #1f4fa8; }
+.tag-c2 { background: #e8f7ee; border-color: #b0dec2; color: #1d6b3d; }
+.tag-c3 { background: #fdf0e3; border-color: #f2cfa6; color: #8a4d0f; }
+.tag-c4 { background: #f5e9fb; border-color: #dbbcef; color: #6b2d8f; }
+.tag-c5 { background: #fde8ea; border-color: #f3b9c0; color: #a12a3a; }
+.tag-c6 { background: #e5f6f8; border-color: #ade0e7; color: #11656f; }
+.tag-c7 { background: #f6f3e2; border-color: #e0d7a3; color: #6d6113; }
+.tag-dot { width: 8px; height: 8px; padding: 0; border-radius: 50%; margin: 0; }
+.tree { list-style: none; margin: 0; padding: 0; }
+.tree ul { list-style: none; margin: 0 0 6px; padding: 0 0 0 10px; }
+.tree a { display: flex; align-items: center; gap: 6px; padding: 4px 8px; border-radius: 6px; color: var(--text); font-size: 13px; }
+.tree a:hover { background: var(--bg); }
+.tree a.active { background: var(--sel); font-weight: 600; }
+.tree-type { font-weight: 600; text-transform: capitalize; }
+.active-filters { padding: 6px 10px; font-size: 12px; color: var(--muted); border-bottom: 1px solid var(--border); background: #fafbfc; }
+.message-tags { margin: 10px 0 4px; display: flex; flex-wrap: wrap; align-items: center; gap: 4px; }
+.message-tags .tag { font-size: 12px; padding: 2px 8px; }
+.tag-remove button { border: 0; background: none; cursor: pointer; padding: 0 0 0 4px; color: inherit; font-size: 13px; line-height: 1; }
+.tag-add input { font: inherit; font-size: 12px; padding: 2px 8px; border: 1px dashed var(--border); border-radius: 10px; width: 120px; }
+.card-head { display: flex; align-items: center; justify-content: space-between; }
+.notice { background: #fff8e6; border: 1px solid #f0dca8; color: #6d5310; padding: 8px 12px; border-radius: 6px; font-size: 13px; }
+table.rules tr.disabled td { opacity: .5; }
+table.rules .cond { display: inline-block; margin: 1px 0; }
+table.rules .joiner { font-size: 11px; color: var(--muted); font-weight: 600; margin: 0 4px; }
+.rule-edit .field { display: flex; flex-direction: column; gap: 6px; margin: 14px 0 4px; font-size: 13px; color: var(--muted); }
+.rule-edit input[type=text], .rule-edit select { font: inherit; padding: 6px 8px; border: 1px solid var(--border); border-radius: 6px; color: var(--text); }
+.rule-edit .field > input { max-width: 520px; }
+.cond-row { display: flex; gap: 8px; margin: 4px 0; }
+.cond-row input { flex: 1; max-width: 420px; }
+.check { display: block; margin: 8px 0; font-size: 13px; }
+.form-actions { margin-top: 16px; display: flex; gap: 8px; }
+.col-subject .tag { font-size: 10px; padding: 0 6px; line-height: 15px; }
+.tree .tag-dot { background: currentColor; border-color: currentColor; }
+#add-condition { align-self: flex-start; }

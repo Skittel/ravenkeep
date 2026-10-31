@@ -1,0 +1,10 @@
+[Unit]
+Description=Ravenkeep: delete messages older than their retention period
+After=mariadb.service
+
+[Service]
+Type=oneshot
+User=www-data
+Group=www-data
+ExecStart=/usr/bin/php /srv/ravenkeep/webapp/spark ravenkeep:purge
+Nice=10

@@ -24,7 +24,7 @@ class PushConfig extends BaseCommand
     public function run(array $params)
     {
         $errors = 0;
-        foreach ((new NodeConfigSync(Database::connect()))->syncAll(CLI::getOption('force') !== null) as $node => $result) {
+        foreach ((new NodeConfigSync(Database::connect()))->syncAll(array_key_exists('force', $params) || CLI::getOption('force') !== null) as $node => $result) {
             CLI::write("{$node}: {$result}");
             $errors += str_starts_with($result, 'error') ? 1 : 0;
         }

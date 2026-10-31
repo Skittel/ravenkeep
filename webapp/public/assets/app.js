@@ -8,6 +8,36 @@
         if (msg && !window.confirm(msg)) e.preventDefault();
     });
 
+    // Rule editor: add/remove condition rows, offer only the operators that fit the field
+    const conditions = document.getElementById('conditions');
+    if (conditions) {
+        const syncOperators = function (row) {
+            const group = row.querySelector('.cond-field').value === 'tag' ? 'tag' : 'text';
+            const op = row.querySelector('.cond-op');
+            let selectedOk = false;
+            op.querySelectorAll('option').forEach(function (o) {
+                o.hidden = o.disabled = o.dataset.group !== group;
+                if (o.selected && !o.disabled) selectedOk = true;
+            });
+            if (!selectedOk) op.querySelector('option[data-group="' + group + '"]').selected = true;
+        };
+        conditions.querySelectorAll('.cond-row').forEach(syncOperators);
+        conditions.addEventListener('change', function (e) {
+            if (e.target.classList.contains('cond-field')) syncOperators(e.target.closest('.cond-row'));
+        });
+        conditions.addEventListener('click', function (e) {
+            if (e.target.classList.contains('cond-remove') && conditions.querySelectorAll('.cond-row').length > 1) {
+                e.target.closest('.cond-row').remove();
+            }
+        });
+        document.getElementById('add-condition').addEventListener('click', function () {
+            const row = document.getElementById('condition-template').content.firstElementChild.cloneNode(true);
+            conditions.appendChild(row);
+            syncOperators(row);
+            row.querySelector('input').focus();
+        });
+    }
+
     const list = document.getElementById('message-list');
     const pane = document.getElementById('reading-pane');
     if (!list || !pane) return;

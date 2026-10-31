@@ -19,6 +19,19 @@ class Ravenkeep extends BaseConfig
     /** Messages per page in the message list. */
     public int $pageSize = 50;
 
+    /**
+     * Retention in days per status (T-14, agreed 2026-10-31); messages and archived EML files
+     * older than this are deleted by `php spark ravenkeep:purge` (daily timer).
+     *
+     * @var array<string, int>
+     */
+    public array $retentionDays = [
+        'pending'  => 30,
+        'blocked'  => 30,
+        'accepted' => 365,
+        'rejected' => 365,
+    ];
+
     /** Maximum number of spool entries imported per node and run. */
     public int $collectBatchSize = 500;
 }

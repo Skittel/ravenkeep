@@ -74,7 +74,8 @@ class SenderRuleService
             $new = $rules->classify($message);
             if ($new['status'] !== $message['status'] || $new['list_match_pattern'] !== $message['list_match_pattern']
                 || $new['list_match_target'] !== $message['list_match_target']) {
-                $this->db->table('messages')->where('id', $message['id'])->update($new);
+                // rules_version 0: the collector re-applies the rules (rule tags only for accepted messages)
+                $this->db->table('messages')->where('id', $message['id'])->update($new + ['rules_version' => 0]);
                 $changed++;
             }
         }
