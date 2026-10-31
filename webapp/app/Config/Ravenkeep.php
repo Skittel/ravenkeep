@@ -13,6 +13,9 @@ class Ravenkeep extends BaseConfig
     /** Directory for original messages (EML), outside the web root. */
     public string $archivePath = '/var/lib/ravenkeep-app/archive';
 
+    /** Host name devices use for SMTP submission (shown with new credentials). */
+    public string $smtpHost = 'smtp.ravenkeep.cloud';
+
     /** Time zone used to display dates in the UI (dates are stored in UTC). */
     public string $displayTimezone = 'Europe/Berlin';
 

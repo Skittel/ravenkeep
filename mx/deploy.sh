@@ -29,6 +29,13 @@ rm -f /opt/ravenkeep/mx/bin/rk-policy /etc/ravenkeep/allowed-sender-domains /etc
 [ -f /etc/ravenkeep/smtp-users ] || : > /etc/ravenkeep/smtp-users
 chown root:dovecot /etc/ravenkeep/smtp-users; chmod 640 /etc/ravenkeep/smtp-users
 
+# local-domains: keep the currently configured domains when switching to the file (first deployment)
+if [ ! -s /etc/ravenkeep/local-domains ]; then
+  postconf -h virtual_mailbox_domains | tr ', ' '\n\n' | grep -E '^[a-z0-9.-]+\.[a-z]+$' > /etc/ravenkeep/local-domains || true
+  [ -s /etc/ravenkeep/local-domains ] || { echo "ERROR: /etc/ravenkeep/local-domains is empty - create it first" >&2; exit 1; }
+fi
+chmod 644 /etc/ravenkeep/local-domains
+
 # Postfix main.cf
 grep -vE '^\s*(#|$)' "$SRC/config/postfix-main.cf" | while IFS= read -r line; do postconf -e "$line"; done
 # Postfix master.cf: replace managed block, disable stock submission/submissions entries

@@ -156,6 +156,7 @@ class ApplyConfigTest(unittest.TestCase):
     def _install_without_chown(self, name, data):
         with open(os.path.join(intake.CONFIG_DIR, name), "wb") as fh:
             fh.write(data)
+        return False  # no reload actions in tests
 
     def _deliver(self, files, manifest_files=None, bundle_hash="a" * 64):
         incoming = self.mod.INCOMING_DIR
@@ -198,6 +199,24 @@ class ApplyConfigTest(unittest.TestCase):
         self._deliver({"passwd": "x\n"})
         self.assertEqual(self.mod.main(), 1)
         self.assertIn("unknown file", self._status()["error"])
+
+    def test_new_file_validators(self):
+        good_hash = "$2y$10$" + "a" * 53
+        self.mod.validate_smtp_users(f"# header\nacme.nas01@customer.example.org:{{BLF-CRYPT}}{good_hash}\n")
+        for bad in [f"acme@customer.example.org:{good_hash}",                       # missing scheme
+                    f"acme@customer.example.org:{{PLAIN}}secret",
+                    f"bad user@customer.example.org:{{BLF-CRYPT}}{good_hash}",
+                    f"a@x.example:{{BLF-CRYPT}}{good_hash}\na@x.example:{{BLF-CRYPT}}{good_hash}"]:  # duplicate
+            with self.subTest(bad=bad), self.assertRaises(ValueError):
+                self.mod.validate_smtp_users(bad + "\n")
+        self.mod.validate_local_domains("customer.example.org\nexample.org\n")
+        for bad in ["", "\n", "# comment\n", "not a domain\n"]:
+            with self.subTest(bad=bad), self.assertRaises(ValueError):
+                self.mod.validate_local_domains(bad)
+        self.mod.validate_admin_networks("# x\n192.0.2.10\n2001:db8::/64\n")
+        for bad in ["10.0.0.0/4\n", "example.org\n", "300.1.1.1\n"]:
+            with self.subTest(bad=bad), self.assertRaises(ValueError):
+                self.mod.validate_admin_networks(bad)
 
     def test_validator_rejects_bad_patterns(self):
         for bad in ["com", "a@@b.example", "x.example both", "x.example envelope extra", "-bad-.example"]:

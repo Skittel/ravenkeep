@@ -9,9 +9,11 @@ On error nothing changes: the last valid config stays active and the error is re
 <data>/config-status.json, which the web app reads back.
 """
 import hashlib
+import ipaddress
 import json
 import os
 import re
+import subprocess
 import sys
 import time
 
@@ -40,10 +42,73 @@ def validate_sender_list(text):
             raise ValueError(f"line {number}: invalid pattern {pattern!r}")
 
 
-# file name -> (validator, install mode, group)
+SMTP_USER_RE = re.compile(r"^([a-z0-9](?:[a-z0-9._+-]{0,62}[a-z0-9])?)@([a-z0-9.-]+):\{BLF-CRYPT\}\$2[aby]\$\d\d\$[./A-Za-z0-9]{53}$")
+FAIL2BAN_JAIL = "/etc/fail2ban/jail.d/ravenkeep.conf"
+
+
+def content_lines(text):
+    return [line.strip() for line in text.splitlines() if line.strip() and not line.lstrip().startswith("#")]
+
+
+def validate_smtp_users(text):
+    """Dovecot passwd-file: <local>@<domain>:{BLF-CRYPT}<bcrypt hash>, unique user names."""
+    seen = set()
+    for number, line in enumerate(content_lines(text), 1):
+        match = SMTP_USER_RE.match(line)
+        if not match or not DOMAIN_RE.match(match.group(2)):
+            raise ValueError(f"entry {number}: expected '<user>@<domain>:{{BLF-CRYPT}}<bcrypt hash>'")
+        user = line.split(":", 1)[0]
+        if user in seen:
+            raise ValueError(f"entry {number}: duplicate user {user}")
+        seen.add(user)
+
+
+def validate_local_domains(text):
+    """At least one domain, one per line, no comments (Postfix reads the file as a list)."""
+    domains = text.split()
+    if not domains:
+        raise ValueError("local-domains must not be empty (the node would reject all mail)")
+    for domain in domains:
+        if not DOMAIN_RE.match(domain):
+            raise ValueError(f"invalid domain {domain!r}")
+
+
+def validate_admin_networks(text):
+    for line in content_lines(text):
+        try:
+            network = ipaddress.ip_network(line, strict=False)
+        except ValueError as exc:
+            raise ValueError(f"invalid network {line!r}") from exc
+        if network.prefixlen < 8:
+            raise ValueError(f"network too large: {line!r}")
+
+
+def reload_postfix():
+    subprocess.run(["postfix", "reload"], check=True, capture_output=True)
+
+
+def update_fail2ban():
+    """Rewrite the ignoreip line of the Ravenkeep jail from admin-networks and reload fail2ban."""
+    if not os.path.exists(FAIL2BAN_JAIL):
+        return
+    with open(os.path.join(intake.CONFIG_DIR, "admin-networks"), encoding="utf-8") as fh:
+        networks = content_lines(fh.read())
+    with open(FAIL2BAN_JAIL, encoding="utf-8") as fh:
+        jail = fh.read()
+    jail = re.sub(r"(?m)^ignoreip = .*$", "ignoreip = 127.0.0.1/8 ::1 " + " ".join(networks), jail, count=1)
+    with open(FAIL2BAN_JAIL + ".tmp", "w", encoding="utf-8") as fh:
+        fh.write(jail)
+    os.replace(FAIL2BAN_JAIL + ".tmp", FAIL2BAN_JAIL)
+    subprocess.run(["fail2ban-client", "reload"], check=True, capture_output=True)
+
+
+# file name -> (validator, install mode, group, action after a change)
 KNOWN_FILES = {
-    "allowed-senders": (validate_sender_list, 0o644, "root"),
-    "blocked-senders": (validate_sender_list, 0o644, "root"),
+    "allowed-senders": (validate_sender_list, 0o644, "root", None),
+    "blocked-senders": (validate_sender_list, 0o644, "root", None),
+    "smtp-users": (validate_smtp_users, 0o640, "dovecot", None),
+    "local-domains": (validate_local_domains, 0o644, "root", reload_postfix),
+    "admin-networks": (validate_admin_networks, 0o644, "root", update_fail2ban),
 }
 
 
@@ -92,9 +157,15 @@ def load_bundle():
 
 
 def install(name, data):
-    _validator, mode, group = KNOWN_FILES[name]
+    """Install a file atomically. Returns True if the content changed."""
+    _validator, mode, group, _action = KNOWN_FILES[name]
     import grp
     target = os.path.join(intake.CONFIG_DIR, name)
+    try:
+        with open(target, "rb") as fh:
+            unchanged = fh.read() == data
+    except OSError:
+        unchanged = False
     tmp = os.path.join(intake.CONFIG_DIR, f".{name}.tmp")
     with open(tmp, "wb") as fh:
         fh.write(data)
@@ -103,6 +174,7 @@ def install(name, data):
     os.chmod(tmp, mode)
     os.chown(tmp, 0, grp.getgrnam(group).gr_gid)
     os.replace(tmp, target)
+    return not unchanged
 
 
 def clear_incoming():
@@ -125,12 +197,18 @@ def main():
         print(f"rk-apply-config: rejected bundle: {exc}", file=sys.stderr)
         return 1
 
-    for name, data in contents.items():
-        install(name, data)
-    write_status({"applied_hash": bundle_hash, "applied_at": now, "files": sorted(contents), "error": None})
+    changed = [name for name, data in contents.items() if install(name, data)]
+    errors = []
+    for action in dict.fromkeys(KNOWN_FILES[name][3] for name in changed if KNOWN_FILES[name][3]):
+        try:
+            action()
+        except Exception as exc:  # noqa: BLE001 – files are installed; report the failed reload
+            errors.append(f"{action.__name__}: {exc}")
+    write_status({"applied_hash": bundle_hash, "applied_at": now, "files": sorted(contents), "changed": changed,
+                  "error": "; ".join(errors) or None})
     clear_incoming()
-    print(f"rk-apply-config: applied {bundle_hash[:12]} ({', '.join(sorted(contents))})")
-    return 0
+    print(f"rk-apply-config: applied {bundle_hash[:12]} (changed: {', '.join(changed) or 'none'})")
+    return 1 if errors else 0
 
 
 if __name__ == "__main__":

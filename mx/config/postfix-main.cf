@@ -14,8 +14,8 @@ smtpd_tls_protocols = >=TLSv1.2
 smtpd_tls_mandatory_protocols = >=TLSv1.2
 smtpd_tls_loglevel = 1
 smtp_tls_security_level = may
-# Every address of these domains is accepted (no pre-registered recipients) and piped to rk-deliver
-virtual_mailbox_domains = ravenkeep.cloud, customer.ravenkeep.cloud
+# Domains come from /etc/ravenkeep/local-domains (maintained by the web app). Every address is accepted (no pre-registered recipients) and piped to rk-deliver
+virtual_mailbox_domains = /etc/ravenkeep/local-domains
 virtual_mailbox_maps = static:ok
 virtual_transport = ravenkeep
 ravenkeep_destination_recipient_limit = 1

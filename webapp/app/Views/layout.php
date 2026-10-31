@@ -24,7 +24,9 @@ $search = $search ?? [];
             <a href="<?= site_url('/') ?>" class="<?= $active === 'messages' ? 'active' : '' ?>"><?= lang('Senders.navMessages') ?></a>
             <a href="<?= site_url('rules') ?>" class="<?= $active === 'rules' ? 'active' : '' ?>"><?= lang('Rules.nav') ?></a>
             <a href="<?= site_url('senders') ?>" class="<?= $active === 'senders' ? 'active' : '' ?>"><?= lang('Senders.nav') ?></a>
+            <a href="<?= site_url('devices') ?>" class="<?= $active === 'devices' ? 'active' : '' ?>"><?= lang('Devices.nav') ?></a>
             <a href="<?= site_url('nodes') ?>" class="<?= $active === 'nodes' ? 'active' : '' ?>"><?= lang('Senders.navNodes') ?></a>
+            <a href="<?= site_url('settings') ?>" class="<?= $active === 'settings' ? 'active' : '' ?>"><?= lang('Devices.navSettings') ?></a>
         </nav>
         <form class="search" method="get" action="<?= site_url('/') ?>">
             <?php if (! empty($search['status'])): ?>

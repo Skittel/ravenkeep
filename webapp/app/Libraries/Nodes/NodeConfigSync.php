@@ -11,8 +11,8 @@ use Throwable;
  * Builds the config bundle for the MX nodes from the database and delivers it.
  *
  * Bundle = files managed by the web app + manifest.json {hash, generated_at, files: {name: sha256}}.
- * Only files listed in the manifest are touched on the node; others (e.g. smtp-users, as long as
- * the web app does not manage it yet) stay as they are.
+ * Only files listed in the manifest are touched on the node; local-domains and admin-networks are
+ * left out while their tables are empty, so they can never be wiped by an empty database.
  */
 class NodeConfigSync
 {
@@ -31,7 +31,7 @@ class NodeConfigSync
         $files = [
             'allowed-senders' => $rules->render('allow'),
             'blocked-senders' => $rules->render('block'),
-        ];
+        ] + (new NodeSettings($this->db))->renderFiles();
         ksort($files);
         $hash = hash('sha256', implode("\0", array_map(static fn ($n, $c) => $n . "\0" . $c, array_keys($files), $files)));
 
