@@ -1,0 +1,61 @@
+#!/usr/bin/python3 -I
+"""Postfix pipe delivery: check the sender (MX only) and store the message in the local spool.
+
+Called once per recipient with key=value arguments:
+  sender= recipient= client_address= client_helo= sasl_username= queue_id=
+Exit 0 = stored, exit 75 (EX_TEMPFAIL) = Postfix retries later; mail is never lost or bounced
+because of an internal error.
+"""
+import email
+import email.policy
+import os
+import sys
+import traceback
+
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.realpath(__file__)), ".."))
+
+from ravenkeep_mx import intake, senderauth  # noqa: E402
+from ravenkeep_mx.dnsclient import DNSClient  # noqa: E402
+
+EX_TEMPFAIL = 75
+
+
+def parse_args(argv):
+    args = {}
+    for item in argv:
+        key, _, value = item.partition("=")
+        args[key] = value
+    return args
+
+
+def main():
+    args = parse_args(sys.argv[1:])
+    raw = sys.stdin.buffer.read()
+    msg = email.message_from_bytes(raw, policy=email.policy.compat32)
+
+    metadata = {
+        "envelope": {"sender": args.get("sender", ""), "recipient": args.get("recipient", "")},
+        "client": {"address": args.get("client_address", ""), "helo": args.get("client_helo", "")},
+        "queue_id": args.get("queue_id", ""),
+        "size": len(raw),
+    }
+    if args.get("sasl_username"):
+        # Authenticated submission: the SMTP login identifies the device; no SPF/DKIM checks needed.
+        metadata.update(mode="auth", sasl_username=args["sasl_username"], verdict="accepted", reasons=[])
+    else:
+        check = senderauth.evaluate(DNSClient(), raw, msg, args.get("client_address", ""),
+                                    args.get("sender", ""), args.get("client_helo", ""))
+        metadata.update(mode="mx", verdict=check["verdict"], reasons=check["reasons"],
+                        auth={k: check[k] for k in ("spf", "dkim", "from_domain", "alignment")})
+
+    entry_id = intake.spool_message(raw, metadata)
+    print(f"stored {entry_id} verdict={metadata['verdict']}")
+    return 0
+
+
+if __name__ == "__main__":
+    try:
+        sys.exit(main())
+    except Exception:  # noqa: BLE001
+        traceback.print_exc()
+        sys.exit(EX_TEMPFAIL)

@@ -1,0 +1,35 @@
+# Ravenkeep MX node – Postfix main.cf settings (applied with postconf -e by deploy.sh)
+myhostname = eu01.ravenkeep.cloud
+mydomain = ravenkeep.cloud
+myorigin = $myhostname
+mydestination = localhost
+mynetworks = 127.0.0.0/8 [::1]/128
+inet_protocols = all
+smtpd_banner = $myhostname ESMTP
+message_size_limit = 26214400
+smtpd_tls_chain_files = /etc/letsencrypt/live/eu01.ravenkeep.cloud/privkey.pem, /etc/letsencrypt/live/eu01.ravenkeep.cloud/fullchain.pem
+smtpd_tls_security_level = may
+smtpd_tls_auth_only = yes
+smtpd_tls_protocols = >=TLSv1.2
+smtpd_tls_mandatory_protocols = >=TLSv1.2
+smtpd_tls_loglevel = 1
+smtp_tls_security_level = may
+# Every address of these domains is accepted (no pre-registered recipients) and piped to rk-deliver
+virtual_mailbox_domains = ravenkeep.cloud, customer.ravenkeep.cloud
+virtual_mailbox_maps = static:ok
+virtual_transport = ravenkeep
+ravenkeep_destination_recipient_limit = 1
+# Port 25: never relay; sender domain allow-list via policy service
+smtpd_helo_required = yes
+smtpd_relay_restrictions = permit_mynetworks, reject_unauth_destination
+smtpd_recipient_restrictions = reject_non_fqdn_recipient, reject_unauth_destination, check_policy_service unix:private/rk-policy
+rk-policy_time_limit = 3600
+# SASL via Dovecot (only offered on 465/587, see master.cf)
+smtpd_sasl_type = dovecot
+smtpd_sasl_path = private/auth
+smtpd_sasl_auth_enable = no
+smtpd_sasl_authenticated_header = no
+# Abuse limits
+smtpd_client_connection_rate_limit = 60
+smtpd_client_message_rate_limit = 120
+smtpd_client_auth_rate_limit = 20
