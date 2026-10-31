@@ -2,8 +2,15 @@
 .env
 *.env
 secrets/
-# Dependencies / build
-/vendor/
-/writable/
+*.pem
+*.private
+# Dependencies / runtime
+vendor/
+webapp/writable/*
+!webapp/writable/*/
+webapp/writable/*/*
+!webapp/writable/*/index.html
+!webapp/writable/.htaccess
+!webapp/writable/index.html
 __pycache__/
 *.pyc
