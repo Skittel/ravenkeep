@@ -8,7 +8,12 @@ id ravenkeep >/dev/null 2>&1 || useradd --system --home-dir /var/lib/ravenkeep -
 install -d -m 755 /opt/ravenkeep "$DEST" "$DEST/bin" "$DEST/ravenkeep_mx"
 install -m 755 "$SRC"/bin/rk-* "$DEST/bin/"
 install -m 644 "$SRC"/ravenkeep_mx/*.py "$DEST/ravenkeep_mx/"
-install -d -m 750 -o ravenkeep -g ravenkeep /var/lib/ravenkeep /var/lib/ravenkeep/spool /var/lib/ravenkeep/spool/tmp /var/lib/ravenkeep/spool/new
+install -d -m 750 -o ravenkeep -g ravenkeep /var/lib/ravenkeep /var/lib/ravenkeep/spool /var/lib/ravenkeep/spool/tmp
+# new/: the collector (group ravenkeep) reads and deletes entries
+install -d -m 2770 -o ravenkeep -g ravenkeep /var/lib/ravenkeep/spool/new
+chmod g+r /var/lib/ravenkeep/spool/new/* 2>/dev/null || true
+# Local collector (web app on the same server) runs as www-data
+if id www-data >/dev/null 2>&1; then usermod -aG ravenkeep www-data; fi
 install -d -m 755 /etc/ravenkeep
 for f in allowed-senders blocked-senders; do
   [ -f /etc/ravenkeep/$f ] || printf '# <domain or address> [envelope|header]  (domain includes subdomains, default envelope)\n# Maintained by the Ravenkeep web app.\n' > /etc/ravenkeep/$f

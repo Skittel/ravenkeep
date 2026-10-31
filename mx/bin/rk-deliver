@@ -86,7 +86,7 @@ def main():
     raw = sys.stdin.buffer.read()
     msg = email.message_from_bytes(raw, policy=email.policy.compat32)
     dnsc = DNSClient()
-    client_ip = args.get("client_address", "")
+    client_ip = args.get("client_address", "").removeprefix("IPv6:")  # Postfix marks IPv6 this way
     headers = header_summary(msg)
 
     metadata = {

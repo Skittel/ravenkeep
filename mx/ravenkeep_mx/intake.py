@@ -70,7 +70,11 @@ def _write_synced(path, data):
 
 
 def spool_message(raw_bytes, metadata):
-    """Store the original message and its metadata durably. Returns the entry id."""
+    """Store the original message and its metadata durably. Returns the entry id.
+
+    Files are group-readable (0640) so the collector (member of group "ravenkeep") can read them.
+    """
+    os.umask(0o027)
     entry_id = f"{time.strftime('%Y%m%dT%H%M%S')}-{uuid.uuid4().hex[:12]}"
     tmp_dir, new_dir = os.path.join(SPOOL_DIR, "tmp"), os.path.join(SPOOL_DIR, "new")
     os.makedirs(tmp_dir, exist_ok=True)
