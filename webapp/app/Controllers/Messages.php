@@ -13,7 +13,7 @@ use RuntimeException;
  */
 class Messages extends BaseController
 {
-    protected $helpers = ['ravenkeep', 'url'];
+    protected $helpers = ['ravenkeep', 'url', 'form'];
 
     public function index(): string
     {

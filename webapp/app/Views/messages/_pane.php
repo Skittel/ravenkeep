@@ -22,6 +22,21 @@ $row = static function (string $label, ?string $value): string {
 
     return '<tr><th>' . esc($label) . '</th><td>' . esc($value) . '</td></tr>';
 };
+$quick = static function (string $address, string $target, int $id): string {
+    $address = strtolower(trim($address, '<> '));
+    if (! str_contains($address, '@')) {
+        return '';
+    }
+    $domain = substr((string) strrchr($address, '@'), 1);
+    $form   = static fn (string $pattern, string $action, string $label, string $class) => form_open('senders', ['class' => 'inline'])
+        . form_hidden(['pattern' => $pattern, 'target' => $target, 'action' => $action, 'return_to' => '/?id=' . $id])
+        . '<button type="submit" class="button ' . $class . '">' . esc($label) . '</button>' . form_close();
+
+    return '<tr><th>' . esc($target === 'header' ? lang('Ui.headerFrom') : lang('Ui.envelopeFrom')) . '</th><td><code>' . esc($address) . '</code> '
+        . $form($domain, 'allow', lang('Senders.allowDomain') . ' (' . $domain . ')', 'button-allow')
+        . $form($address, 'allow', lang('Senders.allowAddress'), 'button-allow')
+        . $form($domain, 'block', lang('Senders.blockDomain'), 'button-block') . '</td></tr>';
+};
 $text = $reader?->textBody();
 $html = $reader?->htmlBody();
 ?>
@@ -83,6 +98,13 @@ $html = $reader?->htmlBody();
                     <?php foreach ($reasons as $reason): ?><li><?= esc($reason) ?></li><?php endforeach ?>
                 </ul>
             <?php endif ?>
+            <h2><?= lang('Senders.quickTitle') ?></h2>
+            <table class="kv quick">
+                <?= $quick((string) $m['envelope_sender'], 'envelope', (int) $m['id']) ?>
+                <?php if (($m['header_from_address'] ?? '') !== '' && strtolower((string) $m['header_from_address']) !== strtolower((string) $m['envelope_sender'])): ?>
+                    <?= $quick((string) $m['header_from_address'], 'header', (int) $m['id']) ?>
+                <?php endif ?>
+            </table>
         <?php endif ?>
     </section>
 

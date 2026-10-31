@@ -16,19 +16,9 @@ $statusLabels = [
     'blocked'  => lang('Ui.statusBlocked'),
 ];
 ?>
+<?php $this->setData(['active' => 'messages', 'search' => $filter]); ?>
 <?= $this->extend('layout') ?>
 <?= $this->section('content') ?>
-<div class="app">
-    <header class="topbar">
-        <a class="brand" href="<?= site_url('/') ?>"><?= lang('Ui.appName') ?></a>
-        <form class="search" method="get" action="<?= site_url('/') ?>">
-            <?php if (! empty($filter['status'])): ?>
-                <input type="hidden" name="status" value="<?= esc($filter['status'], 'attr') ?>">
-            <?php endif ?>
-            <input type="search" name="q" value="<?= esc($filter['q'] ?? '', 'attr') ?>" placeholder="<?= esc(lang('Ui.search'), 'attr') ?>" autocomplete="off">
-        </form>
-    </header>
-
     <nav class="sidebar">
         <h2><?= lang('Ui.status') ?></h2>
         <ul class="filters">
@@ -81,5 +71,4 @@ $statusLabels = [
             <?= $pane ?? '<p class="placeholder">' . lang('Ui.selectMessage') . '</p>' ?>
         </section>
     </main>
-</div>
 <?= $this->endSection() ?>

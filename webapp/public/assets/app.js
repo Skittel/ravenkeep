@@ -2,6 +2,12 @@
 (function () {
     'use strict';
 
+    // Confirmation for destructive forms (data-confirm="…")
+    document.addEventListener('submit', function (e) {
+        const msg = e.target.dataset && e.target.dataset.confirm;
+        if (msg && !window.confirm(msg)) e.preventDefault();
+    });
+
     const list = document.getElementById('message-list');
     const pane = document.getElementById('reading-pane');
     if (!list || !pane) return;

@@ -104,5 +104,107 @@ class SenderListTest(unittest.TestCase):
             os.unlink(fh.name)
 
 
+class SharedVectorsTest(unittest.TestCase):
+    """Same cases as the PHP tests (webapp/tests/unit/SenderRulesTest.php)."""
+
+    CASES = os.path.join(os.path.dirname(__file__), "..", "..", "tests-shared", "sender_match_cases.json")
+
+    def test_shared_cases(self):
+        import json
+        with open(self.CASES, encoding="utf-8") as fh:
+            cases = json.load(fh)
+        for case in cases["address_matches"]:
+            with self.subTest(case=case):
+                self.assertEqual(intake.address_matches(case["address"], case["pattern"]), case["expected"])
+        for case in cases["find_match"]:
+            with self.subTest(case=case):
+                rules = [tuple(r) for r in case["rules"]]
+                self.assertEqual(intake.find_match(rules, case["envelope"], case["header"]), case["expected"])
+
+
+class ApplyConfigTest(unittest.TestCase):
+    """rk-apply-config: validation and installation of config bundles."""
+
+    def setUp(self):
+        import hashlib
+        import importlib.machinery
+        import importlib.util
+        import tempfile
+        self.hashlib = hashlib
+        self.tmp = tempfile.mkdtemp()
+        os.environ["RAVENKEEP_DATA_DIR"] = os.path.join(self.tmp, "data")
+        os.environ["RAVENKEEP_CONFIG_DIR"] = os.path.join(self.tmp, "etc")
+        os.makedirs(os.path.join(self.tmp, "data", "config-incoming"))
+        os.makedirs(os.path.join(self.tmp, "etc"))
+        import importlib
+        importlib.reload(intake)
+        path = os.path.join(os.path.dirname(__file__), "..", "bin", "rk-apply-config")
+        loader = importlib.machinery.SourceFileLoader("rk_apply_config", path)
+        spec = importlib.util.spec_from_loader("rk_apply_config", loader)
+        self.mod = importlib.util.module_from_spec(spec)
+        loader.exec_module(self.mod)
+        self.mod.install = self._install_without_chown
+
+    def tearDown(self):
+        import shutil
+        shutil.rmtree(self.tmp)
+        os.environ.pop("RAVENKEEP_DATA_DIR")
+        os.environ.pop("RAVENKEEP_CONFIG_DIR")
+        import importlib
+        importlib.reload(intake)
+
+    def _install_without_chown(self, name, data):
+        with open(os.path.join(intake.CONFIG_DIR, name), "wb") as fh:
+            fh.write(data)
+
+    def _deliver(self, files, manifest_files=None, bundle_hash="a" * 64):
+        incoming = self.mod.INCOMING_DIR
+        for name, content in files.items():
+            with open(os.path.join(incoming, name), "w", encoding="utf-8") as fh:
+                fh.write(content)
+        import json
+        manifest_files = manifest_files or {n: self.hashlib.sha256(c.encode()).hexdigest() for n, c in files.items()}
+        with open(os.path.join(incoming, "manifest.json"), "w", encoding="utf-8") as fh:
+            json.dump({"hash": bundle_hash, "files": manifest_files}, fh)
+
+    def _status(self):
+        import json
+        with open(self.mod.STATUS_FILE, encoding="utf-8") as fh:
+            return json.load(fh)
+
+    def test_valid_bundle_is_installed(self):
+        self._deliver({"allowed-senders": "statuscake.com envelope\nalerts@plesk.example header\n"})
+        self.assertEqual(self.mod.main(), 0)
+        with open(os.path.join(intake.CONFIG_DIR, "allowed-senders"), encoding="utf-8") as fh:
+            self.assertIn("statuscake.com", fh.read())
+        self.assertEqual(self._status()["applied_hash"], "a" * 64)
+        self.assertEqual(os.listdir(self.mod.INCOMING_DIR), [])
+
+    def test_invalid_content_keeps_previous_config(self):
+        self._deliver({"allowed-senders": "good.example\n"})
+        self.mod.main()
+        self._deliver({"allowed-senders": "bad pattern here\n"}, bundle_hash="b" * 64)
+        self.assertEqual(self.mod.main(), 1)
+        with open(os.path.join(intake.CONFIG_DIR, "allowed-senders"), encoding="utf-8") as fh:
+            self.assertEqual(fh.read(), "good.example\n")
+        status = self._status()
+        self.assertEqual(status["applied_hash"], "a" * 64)
+        self.assertIn("line 1", status["error"])
+
+    def test_checksum_mismatch_and_unknown_file_are_rejected(self):
+        self._deliver({"allowed-senders": "ok.example\n"}, manifest_files={"allowed-senders": "0" * 64})
+        self.assertEqual(self.mod.main(), 1)
+        self.assertIn("checksum", self._status()["error"])
+        self._deliver({"passwd": "x\n"})
+        self.assertEqual(self.mod.main(), 1)
+        self.assertIn("unknown file", self._status()["error"])
+
+    def test_validator_rejects_bad_patterns(self):
+        for bad in ["com", "a@@b.example", "x.example both", "x.example envelope extra", "-bad-.example"]:
+            with self.subTest(bad=bad), self.assertRaises(ValueError):
+                self.mod.validate_sender_list(bad + "\n")
+        self.mod.validate_sender_list("# comment\n\nxn--mnchen-3ya.de\nuser.name+tag@sub.example.org header\n")
+
+
 if __name__ == "__main__":
     unittest.main()

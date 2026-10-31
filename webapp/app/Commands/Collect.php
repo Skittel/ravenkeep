@@ -4,6 +4,7 @@ namespace App\Commands;
 
 use App\Libraries\Collector\Collector;
 use App\Libraries\Collector\LocalSpoolTransport;
+use App\Libraries\Nodes\NodeConfigSync;
 use CodeIgniter\CLI\BaseCommand;
 use CodeIgniter\CLI\CLI;
 use Config\Database;
@@ -18,7 +19,7 @@ class Collect extends BaseCommand
 {
     protected $group       = 'Ravenkeep';
     protected $name        = 'ravenkeep:collect';
-    protected $description = 'Imports received messages from the spool of all enabled MX nodes.';
+    protected $description = 'Imports received messages from all enabled MX nodes and delivers pending config changes.';
     protected $usage       = 'ravenkeep:collect';
 
     public function run(array $params)
@@ -57,6 +58,16 @@ class Collect extends BaseCommand
             }
 
             $db->table('nodes')->where('id', $node['id'])->update($update);
+        }
+
+        // Deliver pending config changes and read back what the nodes applied
+        foreach ((new NodeConfigSync($db))->syncAll() as $name => $result) {
+            if ($result !== 'up to date') {
+                CLI::write("{$name}: config {$result}");
+            }
+            if (str_starts_with($result, 'error')) {
+                $exitCode = EXIT_ERROR;
+            }
         }
 
         return $exitCode;

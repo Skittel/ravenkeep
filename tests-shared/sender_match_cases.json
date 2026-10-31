@@ -1,0 +1,23 @@
+{
+  "_comment": "Shared test vectors: the MX node (Python) and the web app (PHP) must match senders identically.",
+  "address_matches": [
+    {"address": "a@mail.statuscake.com", "pattern": "statuscake.com", "expected": true},
+    {"address": "a@statuscake.com", "pattern": "statuscake.com", "expected": true},
+    {"address": "A@StatusCake.COM", "pattern": "statuscake.com", "expected": true},
+    {"address": "a@evilstatuscake.com", "pattern": "statuscake.com", "expected": false},
+    {"address": "a@statuscake.com.evil.example", "pattern": "statuscake.com", "expected": false},
+    {"address": "a@example.com", "pattern": "com", "expected": false},
+    {"address": "", "pattern": "statuscake.com", "expected": false},
+    {"address": "<Alerts@Plesk.example>", "pattern": "alerts@plesk.example", "expected": true},
+    {"address": "other@plesk.example", "pattern": "alerts@plesk.example", "expected": false},
+    {"address": "alerts@sub.plesk.example", "pattern": "alerts@plesk.example", "expected": false}
+  ],
+  "find_match": [
+    {"rules": [["bounce.example", "envelope"], ["alerts@monitor.example", "header"]],
+     "envelope": "x@bounce.example", "header": "", "expected": {"pattern": "bounce.example", "target": "envelope"}},
+    {"rules": [["bounce.example", "envelope"], ["alerts@monitor.example", "header"]],
+     "envelope": "x@other.example", "header": "alerts@monitor.example", "expected": {"pattern": "alerts@monitor.example", "target": "header"}},
+    {"rules": [["bounce.example", "envelope"], ["alerts@monitor.example", "header"]],
+     "envelope": "alerts@monitor.example", "header": "x@bounce.example", "expected": null}
+  ]
+}

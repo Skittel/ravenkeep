@@ -1,0 +1,9 @@
+[Unit]
+Description=Ravenkeep: fallback check for config bundles every 5 minutes
+
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=5min
+
+[Install]
+WantedBy=timers.target

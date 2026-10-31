@@ -1,0 +1,137 @@
+#!/usr/bin/python3 -I
+"""Apply a config bundle delivered by the Ravenkeep web app (decision E-009). Runs as root,
+started by the systemd path unit when <data>/config-incoming/manifest.json appears.
+
+The bundle is validated completely before anything is installed:
+  - only known file names, sha256 of every file must match the manifest
+  - syntax check per file type
+On error nothing changes: the last valid config stays active and the error is reported in
+<data>/config-status.json, which the web app reads back.
+"""
+import hashlib
+import json
+import os
+import re
+import sys
+import time
+
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.realpath(__file__)), ".."))
+
+from ravenkeep_mx import intake  # noqa: E402
+
+INCOMING_DIR = os.path.join(intake.DATA_DIR, "config-incoming")
+STATUS_FILE = os.path.join(intake.DATA_DIR, "config-status.json")
+DOMAIN_RE = re.compile(r"^(?=.{4,253}$)(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+(?:[a-z]{2,63}|xn--[a-z0-9-]{1,59})$")
+LOCAL_RE = re.compile(r'^[^\s@"]{1,64}$')
+MAX_FILE_SIZE = 5 * 1024 * 1024
+
+
+def validate_sender_list(text):
+    """Every non-comment line: <domain or address> [envelope|header]."""
+    for number, line in enumerate(text.splitlines(), 1):
+        parts = line.split("#", 1)[0].split()
+        if not parts:
+            continue
+        if len(parts) > 2 or (len(parts) == 2 and parts[1] not in intake.MATCH_TARGETS):
+            raise ValueError(f"line {number}: expected '<pattern> [envelope|header]'")
+        pattern = parts[0]
+        local, _, domain = pattern.rpartition("@")
+        if (pattern.count("@") > 1) or ("@" in pattern and not LOCAL_RE.match(local)) or not DOMAIN_RE.match(domain):
+            raise ValueError(f"line {number}: invalid pattern {pattern!r}")
+
+
+# file name -> (validator, install mode, group)
+KNOWN_FILES = {
+    "allowed-senders": (validate_sender_list, 0o644, "root"),
+    "blocked-senders": (validate_sender_list, 0o644, "root"),
+}
+
+
+def write_status(status):
+    tmp = STATUS_FILE + ".tmp"
+    with open(tmp, "w", encoding="utf-8") as fh:
+        json.dump(status, fh, indent=1)
+    os.chmod(tmp, 0o640)
+    try:
+        import grp
+        os.chown(tmp, 0, grp.getgrnam("ravenkeep").gr_gid)
+    except (KeyError, PermissionError):
+        pass
+    os.replace(tmp, STATUS_FILE)
+
+
+def read_status():
+    try:
+        with open(STATUS_FILE, encoding="utf-8") as fh:
+            return json.load(fh)
+    except (OSError, ValueError):
+        return {}
+
+
+def load_bundle():
+    """Read and validate the incoming bundle. Returns (hash, {name: bytes})."""
+    with open(os.path.join(INCOMING_DIR, "manifest.json"), encoding="utf-8") as fh:
+        manifest = json.load(fh)
+    bundle_hash, files = manifest.get("hash"), manifest.get("files")
+    if not isinstance(bundle_hash, str) or not re.fullmatch(r"[0-9a-f]{64}", bundle_hash) or not isinstance(files, dict):
+        raise ValueError("manifest: invalid structure")
+    contents = {}
+    for name, expected in files.items():
+        if name not in KNOWN_FILES:
+            raise ValueError(f"manifest: unknown file {name!r}")
+        path = os.path.join(INCOMING_DIR, name)
+        if os.path.islink(path) or os.path.getsize(path) > MAX_FILE_SIZE:
+            raise ValueError(f"{name}: not a regular file or too large")
+        with open(path, "rb") as fh:
+            data = fh.read()
+        if hashlib.sha256(data).hexdigest() != expected:
+            raise ValueError(f"{name}: checksum mismatch")
+        KNOWN_FILES[name][0](data.decode("utf-8"))
+        contents[name] = data
+    return bundle_hash, contents
+
+
+def install(name, data):
+    _validator, mode, group = KNOWN_FILES[name]
+    import grp
+    target = os.path.join(intake.CONFIG_DIR, name)
+    tmp = os.path.join(intake.CONFIG_DIR, f".{name}.tmp")
+    with open(tmp, "wb") as fh:
+        fh.write(data)
+        fh.flush()
+        os.fsync(fh.fileno())
+    os.chmod(tmp, mode)
+    os.chown(tmp, 0, grp.getgrnam(group).gr_gid)
+    os.replace(tmp, target)
+
+
+def clear_incoming():
+    for name in os.listdir(INCOMING_DIR):
+        path = os.path.join(INCOMING_DIR, name)
+        if os.path.isfile(path) or os.path.islink(path):
+            os.unlink(path)
+
+
+def main():
+    if not os.path.exists(os.path.join(INCOMING_DIR, "manifest.json")):
+        return 0
+    previous = read_status()
+    now = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+    try:
+        bundle_hash, contents = load_bundle()
+    except Exception as exc:  # noqa: BLE001 – any problem keeps the last valid config
+        write_status({**previous, "error": f"{exc}", "error_at": now})
+        clear_incoming()
+        print(f"rk-apply-config: rejected bundle: {exc}", file=sys.stderr)
+        return 1
+
+    for name, data in contents.items():
+        install(name, data)
+    write_status({"applied_hash": bundle_hash, "applied_at": now, "files": sorted(contents), "error": None})
+    clear_incoming()
+    print(f"rk-apply-config: applied {bundle_hash[:12]} ({', '.join(sorted(contents))})")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

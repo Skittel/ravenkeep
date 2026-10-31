@@ -11,10 +11,17 @@ install -m 644 "$SRC"/ravenkeep_mx/*.py "$DEST/ravenkeep_mx/"
 install -d -m 750 -o ravenkeep -g ravenkeep /var/lib/ravenkeep /var/lib/ravenkeep/spool /var/lib/ravenkeep/spool/tmp
 # new/: the collector (group ravenkeep) reads and deletes entries
 install -d -m 2770 -o ravenkeep -g ravenkeep /var/lib/ravenkeep/spool/new
+# config-incoming/: the web app (group ravenkeep) delivers config bundles here, rk-apply-config installs them
+install -d -m 2770 -o ravenkeep -g ravenkeep /var/lib/ravenkeep/config-incoming
 chmod g+r /var/lib/ravenkeep/spool/new/* 2>/dev/null || true
 # Local collector (web app on the same server) runs as www-data
 if id www-data >/dev/null 2>&1; then usermod -aG ravenkeep www-data; fi
 install -d -m 755 /etc/ravenkeep
+# systemd units for rk-apply-config
+install -m 644 "$SRC"/config/systemd/rk-apply-config.* /etc/systemd/system/
+systemctl daemon-reload
+systemctl enable --now rk-apply-config.path rk-apply-config.timer
+
 for f in allowed-senders blocked-senders; do
   [ -f /etc/ravenkeep/$f ] || printf '# <domain or address> [envelope|header]  (domain includes subdomains, default envelope)\n# Maintained by the Ravenkeep web app.\n' > /etc/ravenkeep/$f
 done

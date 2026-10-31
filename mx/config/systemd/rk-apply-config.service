@@ -1,0 +1,6 @@
+[Unit]
+Description=Ravenkeep: validate and apply a config bundle from the web app
+
+[Service]
+Type=oneshot
+ExecStart=/opt/ravenkeep/mx/bin/rk-apply-config
