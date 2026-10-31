@@ -1,0 +1,136 @@
+<?php
+
+namespace App\Controllers;
+
+use App\Libraries\MessageReader;
+use App\Models\MessageModel;
+use CodeIgniter\Exceptions\PageNotFoundException;
+use CodeIgniter\HTTP\ResponseInterface;
+use RuntimeException;
+
+/**
+ * Mail-client style view: message list with status filter and search, reading pane.
+ */
+class Messages extends BaseController
+{
+    protected $helpers = ['ravenkeep', 'url'];
+
+    public function index(): string
+    {
+        $config = config('Ravenkeep');
+        $filter = [
+            'status' => $this->request->getGet('status'),
+            'q'      => $this->request->getGet('q'),
+        ];
+        $page   = max(1, (int) $this->request->getGet('page'));
+        $model  = new MessageModel();
+
+        $total    = (clone $model)->filtered($filter)->countAllResults();
+        $pages    = max(1, (int) ceil($total / $config->pageSize));
+        $page     = min($page, $pages);
+        $messages = $model->filtered($filter)
+            ->select('id, received_at, status, mode, envelope_sender, envelope_recipient, header_from, sasl_username, subject')
+            ->orderBy('received_at', 'DESC')->orderBy('id', 'DESC')
+            ->findAll($config->pageSize, ($page - 1) * $config->pageSize);
+
+        $selectedId = (int) $this->request->getGet('id');
+
+        return view('messages/index', [
+            'filter'   => $filter + ['page' => $page > 1 ? $page : null],
+            'messages' => $messages,
+            'counts'   => (new MessageModel())->countsByStatus(),
+            'total'    => $total,
+            'page'     => $page,
+            'pages'    => $pages,
+            'pane'     => $selectedId > 0 ? $this->paneOrNull($selectedId) : null,
+            'selected' => $selectedId,
+        ]);
+    }
+
+    /** Reading pane (HTML fragment for the list view; full page without JavaScript). */
+    public function show(int $id): ResponseInterface|string
+    {
+        if ($this->request->isAJAX()) {
+            return $this->pane($id);
+        }
+
+        return redirect()->to(site_url('/') . '?id=' . $id);
+    }
+
+    /**
+     * HTML part of a message for the sandboxed iframe. The Content-Security-Policy sandbox
+     * blocks scripts, forms and every external resource (no tracking pixels, no remote images).
+     */
+    public function html(int $id): ResponseInterface
+    {
+        $reader = $this->reader($this->find($id));
+
+        return $this->response
+            ->setHeader('Content-Security-Policy', "sandbox; default-src 'none'; img-src data:; style-src 'unsafe-inline'; font-src data:")
+            ->setHeader('X-Content-Type-Options', 'nosniff')
+            ->setHeader('Referrer-Policy', 'no-referrer')
+            ->setContentType('text/html', 'UTF-8')
+            ->setBody($reader->htmlBody() ?? '');
+    }
+
+    /** Download the original message. */
+    public function eml(int $id): ResponseInterface
+    {
+        $message = $this->find($id);
+
+        return $this->response
+            ->setHeader('Content-Disposition', 'attachment; filename="' . $message['spool_id'] . '.eml"')
+            ->setHeader('X-Content-Type-Options', 'nosniff')
+            ->setContentType('message/rfc822')
+            ->setBody($this->reader($message)->raw());
+    }
+
+    /** Reading pane for a preselected message; an unknown id just shows the list. */
+    private function paneOrNull(int $id): ?string
+    {
+        try {
+            return $this->pane($id);
+        } catch (PageNotFoundException) {
+            return null;
+        }
+    }
+
+    private function pane(int $id): string
+    {
+        $message = $this->find($id);
+        $reader  = null;
+        $error   = null;
+
+        try {
+            $reader = $this->reader($message);
+        } catch (RuntimeException $e) {
+            $error = $e->getMessage();
+        }
+
+        $node = db_connect()->table('nodes')->select('name')->where('id', $message['node_id'])->get()->getRowArray();
+
+        return view('messages/_pane', [
+            'm'       => $message,
+            'node'    => $node['name'] ?? '?',
+            'reasons' => json_decode($message['reasons'] ?? '[]', true) ?: [],
+            'auth'    => json_decode($message['auth_details'] ?? 'null', true),
+            'reader'  => $reader,
+            'error'   => $error,
+        ]);
+    }
+
+    private function find(int $id): array
+    {
+        $message = (new MessageModel())->find($id);
+        if ($message === null) {
+            throw PageNotFoundException::forPageNotFound();
+        }
+
+        return $message;
+    }
+
+    private function reader(array $message): MessageReader
+    {
+        return new MessageReader(config('Ravenkeep')->archivePath, $message['eml_path']);
+    }
+}
