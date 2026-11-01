@@ -46,7 +46,9 @@ class Auth extends BaseController
         $client = service('entraClient');
 
         try {
-            $claims = $client->redeemCode((string) $this->request->getGet('code'), site_url($config->redirectPath), $oidc['verifier'], $oidc['nonce']);
+            $tokens = $client->redeemCode((string) $this->request->getGet('code'), site_url($config->redirectPath), $oidc['verifier'], $oidc['nonce']);
+            $claims = $tokens['claims'];
+            $role   = $client->roleFor($claims, $tokens['access_token']);
         } catch (Throwable $e) {
             log_message('error', 'Entra sign-in rejected: ' . $e->getMessage());
 
@@ -57,7 +59,7 @@ class Auth extends BaseController
             'oid'      => (string) $claims->oid,
             'name'     => (string) ($claims->name ?? $claims->preferred_username ?? $claims->oid),
             'username' => (string) ($claims->preferred_username ?? ''),
-            'role'     => $client->role($claims),
+            'role'     => $role,
             'login_at' => time(),
         ];
         if ($user['role'] === null) {

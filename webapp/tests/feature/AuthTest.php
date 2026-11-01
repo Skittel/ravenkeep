@@ -77,8 +77,9 @@ final class AuthTest extends CIUnitTestCase
     public function testCallbackSignsInUserWithRoleAndRejectsUsersWithoutGroup(): void
     {
         $mock = $this->createMock(EntraClient::class);
-        $mock->method('redeemCode')->willReturn((object) ['oid' => 'abc', 'name' => 'Anna', 'preferred_username' => 'anna@example.org', 'groups' => ['rw']]);
-        $mock->method('role')->willReturnOnConsecutiveCalls('rw', null);
+        $mock->method('redeemCode')->willReturn(['claims' => (object) ['oid' => 'abc', 'name' => 'Anna', 'preferred_username' => 'anna@example.org'], 'access_token' => 't']);
+        $mock->method('roleFor')->willReturnOnConsecutiveCalls('rw', null);
+        $mock->method('groupDiagnosis')->willReturn('test');
         Services::injectMock('entraClient', $mock);
         $oidc = ['oidc' => ['state' => 's1', 'nonce' => 'n', 'verifier' => 'v', 'return' => '/rules', 'created' => time()]];
 

@@ -91,10 +91,39 @@ final class EntraClientTest extends CIUnitTestCase
         $this->assertSame('code', $query['response_type']);
         $this->assertSame('S256', $query['code_challenge_method']);
         $this->assertSame('select_account', $query['prompt']);
+        $this->assertSame('openid profile email User.Read', $query['scope']);
         $this->assertSame(EntraClient::base64url(hash('sha256', $request['verifier'], true)), $query['code_challenge']);
         $this->assertSame($request['state'], $query['state']);
         $this->assertSame($request['nonce'], $query['nonce']);
         $this->assertArrayNotHasKey('client_secret', $query);
+    }
+
+    public function testRoleViaGraphWhenTokenHasNoGroupsClaim(): void
+    {
+        $calls  = [];
+        $client = new EntraClient($this->config, null, fn () => self::$jwks, function (string $url, string $token, array $body) use (&$calls) {
+            $calls[] = [$url, $token, $body];
+
+            return ['value' => $token === 'token-rw' ? ['group-rw'] : []];
+        });
+        $claims = $client->verifyIdToken($this->token(['groups' => null]), 'n1');
+
+        $this->assertSame('rw', $client->roleFor($claims, 'token-rw'));
+        $this->assertSame('https://graph.microsoft.com/v1.0/me/checkMemberGroups', $calls[0][0]);
+        $this->assertSame(['groupIds' => ['group-rw', 'group-ro']], $calls[0][2]);
+        $this->assertNull($client->roleFor($claims, 'token-none'));
+        $this->assertStringContainsString('Graph checkMemberGroups returned []', $client->groupDiagnosis($claims));
+
+        // A groups claim in the token takes precedence (no Graph call)
+        $this->assertSame('ro', $client->roleFor($client->verifyIdToken($this->token(), 'n1'), 'token-rw'));
+        $this->assertCount(2, $calls);
+    }
+
+    public function testGraphErrorIsReported(): void
+    {
+        $client = new EntraClient($this->config, null, fn () => self::$jwks, fn () => ['error' => ['code' => 'Authorization_RequestDenied', 'message' => 'Insufficient privileges']]);
+        $this->expectExceptionMessage('Authorization_RequestDenied');
+        $client->roleFor($client->verifyIdToken($this->token(['groups' => null]), 'n1'), 'token');
     }
 
     public function testRedeemCodeSendsVerifierAndVerifiesToken(): void
@@ -106,8 +135,8 @@ final class EntraClientTest extends CIUnitTestCase
             return ['id_token' => $this->token()];
         }, fn () => self::$jwks);
 
-        $claims = $client->redeemCode('the-code', 'https://app.example/auth/callback', 'the-verifier', 'n1');
-        $this->assertSame('user-oid', $claims->oid);
+        $tokens = $client->redeemCode('the-code', 'https://app.example/auth/callback', 'the-verifier', 'n1');
+        $this->assertSame('user-oid', $tokens['claims']->oid);
         $this->assertSame(['the-code', 'the-verifier', 'authorization_code'], [$sent['code'], $sent['code_verifier'], $sent['grant_type']]);
     }
 }

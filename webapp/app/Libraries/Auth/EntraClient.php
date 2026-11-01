@@ -17,6 +17,10 @@ use Throwable;
 class EntraClient
 {
     private const AUTHORITY = 'https://login.microsoftonline.com/';
+    private const GRAPH     = 'https://graph.microsoft.com/v1.0';
+
+    /** openid/profile/email for the ID token, User.Read for POST /me/checkMemberGroups (Microsoft Graph). */
+    private const SCOPE = 'openid profile email User.Read';
     private const LEEWAY    = 120;
 
     /** @var callable(string, array): array HTTP POST (url, form) -> decoded JSON */
@@ -25,10 +29,17 @@ class EntraClient
     /** @var callable(string): array HTTP GET (url) -> decoded JSON */
     private $httpGet;
 
-    public function __construct(private readonly Entra $config, ?callable $httpPost = null, ?callable $httpGet = null)
+    /** @var callable(string, string, array): array HTTP POST JSON with bearer token (url, token, body) -> decoded JSON */
+    private $graphPost;
+
+    /** @var list<string>|null groups returned by the last Graph check (for the log) */
+    private ?array $lastGraphGroups = null;
+
+    public function __construct(private readonly Entra $config, ?callable $httpPost = null, ?callable $httpGet = null, ?callable $graphPost = null)
     {
-        $this->httpPost = $httpPost ?? [$this, 'defaultPost'];
-        $this->httpGet  = $httpGet ?? [$this, 'defaultGet'];
+        $this->httpPost  = $httpPost ?? [$this, 'defaultPost'];
+        $this->httpGet   = $httpGet ?? [$this, 'defaultGet'];
+        $this->graphPost = $graphPost ?? [$this, 'defaultGraphPost'];
     }
 
     /**
@@ -46,7 +57,7 @@ class EntraClient
             'response_type'         => 'code',
             'redirect_uri'          => $redirectUri,
             'response_mode'         => 'query',
-            'scope'                 => 'openid profile email',
+            'scope'                 => self::SCOPE,
             'prompt'                => 'select_account', // always let the user choose the account
             'state'                 => $state,
             'nonce'                 => $nonce,
@@ -57,8 +68,13 @@ class EntraClient
         return ['url' => $this->authority() . '/oauth2/v2.0/authorize?' . $query, 'state' => $state, 'nonce' => $nonce, 'verifier' => $verifier];
     }
 
-    /** Exchange the authorization code for tokens and return the verified ID token claims. */
-    public function redeemCode(string $code, string $redirectUri, string $verifier, string $nonce): stdClass
+    /**
+     * Exchange the authorization code for tokens. Returns the verified ID token claims and the
+     * access token for Microsoft Graph (used once for the group check, never stored).
+     *
+     * @return array{claims: stdClass, access_token: ?string}
+     */
+    public function redeemCode(string $code, string $redirectUri, string $verifier, string $nonce): array
     {
         $response = ($this->httpPost)($this->authority() . '/oauth2/v2.0/token', [
             'client_id'     => $this->config->clientId,
@@ -67,13 +83,33 @@ class EntraClient
             'code'          => $code,
             'redirect_uri'  => $redirectUri,
             'code_verifier' => $verifier,
-            'scope'         => 'openid profile email',
+            'scope'         => self::SCOPE,
         ]);
         if (empty($response['id_token'])) {
             throw new RuntimeException('Token endpoint: ' . ($response['error_description'] ?? $response['error'] ?? 'no id_token'));
         }
 
-        return $this->verifyIdToken($response['id_token'], $nonce);
+        return ['claims' => $this->verifyIdToken($response['id_token'], $nonce), 'access_token' => $response['access_token'] ?? null];
+    }
+
+    /**
+     * Role of the signed-in user: from the groups claim if the token contains one, otherwise via
+     * Microsoft Graph POST /me/checkMemberGroups (delegated User.Read, includes nested groups).
+     */
+    public function roleFor(stdClass $claims, ?string $accessToken): ?string
+    {
+        if (isset($claims->groups) || $accessToken === null) {
+            return $this->role($claims);
+        }
+        $groupIds = array_values(array_filter([$this->config->groupRw, $this->config->groupRo]));
+        $response = ($this->graphPost)(self::GRAPH . '/me/checkMemberGroups', $accessToken, ['groupIds' => $groupIds]);
+        if (! isset($response['value']) || ! is_array($response['value'])) {
+            throw new RuntimeException('Graph checkMemberGroups: ' . ($response['error']['code'] ?? 'invalid response') . ' ' . ($response['error']['message'] ?? ''));
+        }
+
+        $this->lastGraphGroups = array_map('strval', $response['value']);
+
+        return $this->role((object) ['groups' => $this->lastGraphGroups]);
     }
 
     /** Verify signature and claims of an ID token. */
@@ -123,6 +159,10 @@ class EntraClient
     /** Why no role was found – for the log (contains no secrets, only group object ids). */
     public function groupDiagnosis(stdClass $claims): string
     {
+        if ($this->lastGraphGroups !== null) {
+            return sprintf('Graph checkMemberGroups returned [%s] (not a member of rw/ro); configured rw=%s ro=%s', implode(',', $this->lastGraphGroups),
+                $this->config->groupRw ?: '-', $this->config->groupRo ?: '-');
+        }
         if (isset($claims->_claim_names->groups) || isset($claims->hasgroups)) {
             return 'group overage: too many groups for the token – configure "groups assigned to the application" in the token configuration';
         }
@@ -171,6 +211,11 @@ class EntraClient
     private function defaultGet(string $url): array
     {
         return $this->request('GET', $url, []);
+    }
+
+    private function defaultGraphPost(string $url, string $accessToken, array $body): array
+    {
+        return $this->request('POST', $url, ['json' => $body, 'headers' => ['Authorization' => 'Bearer ' . $accessToken]]);
     }
 
     private function request(string $method, string $url, array $options): array
