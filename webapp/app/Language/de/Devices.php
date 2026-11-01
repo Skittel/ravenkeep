@@ -43,4 +43,8 @@ return [
     'invalid_last_domain'  => 'Die letzte Domain kann nicht entfernt werden.',
     'invalid_domain_in_use' => 'Die Domain wird noch von Geräten verwendet.',
     'invalid_network'      => 'Ungültige Adresse oder ungültiges Netz (Präfix mindestens /8).',
+    'noFreeDevices' => 'Alle Geräte haben schon einen Zugang. Neue Geräte legst Du unter',
+    'usernameHint' => 'Der Benutzername ergibt sich aus Kunde, Standort und Gerät, z. B. kunde.standort.geraet@customer.ravenkeep.cloud.',
+    'invalid_device' => 'Unbekanntes Gerät.',
+    'invalid_device_has_login' => 'Das Gerät hat schon einen Zugang.',
 ];

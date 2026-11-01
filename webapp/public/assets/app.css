@@ -181,3 +181,21 @@ table.grid tr.disabled td { opacity: .55; }
 .brand { display: flex; align-items: center; gap: 10px; }
 .brand-icon { width: 34px; height: 34px; background: #fff; border-radius: 7px; padding: 2px; }
 .auth-logo { width: 220px; height: auto; display: block; margin: 0 auto 4px; }
+
+/* --- Customers, devices, dashboard (0.3) --- */
+.code-input { width: 140px; min-width: 0 !important; font-family: ui-monospace, Menlo, Consolas, monospace; }
+.hours-input { width: 80px; }
+table.grid tr.overdue td { background: #fdf1f1; }
+table.grid tr.editing td { background: #f6f9ff; }
+table.devices code { font-size: 11px; }
+.card h1 a { color: inherit; }
+.tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 14px; }
+.tile { background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 14px 16px; color: var(--muted); font-size: 13px; display: flex; flex-direction: column; gap: 4px; }
+.tile:hover { border-color: var(--accent); }
+.tile-num { font-size: 28px; font-weight: 700; color: var(--text); line-height: 1.1; }
+.tile-bad { border-color: #f2b8b8; background: #fdf1f1; } .tile-bad .tile-num { color: var(--rejected); }
+.tile-warn { border-color: #f0dca8; background: #fffaf0; } .tile-warn .tile-num { color: #a36b00; }
+.tile-good .tile-num { color: var(--accepted); }
+.ok-text { color: var(--accepted); font-weight: 600; }
+.role-ro-only { display: none; } .role-ro .role-ro-only { display: inline; }
+.mainnav a { padding: 6px 9px; }

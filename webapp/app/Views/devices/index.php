@@ -4,6 +4,7 @@
  * @var list<string> $domains
  * @var array{username: string, password: string, sync: string, reset?: bool}|null $created
  * @var array<string, string> $lastSeen
+ * @var list<array> $freeDevices devices without SMTP login
  */
 $this->setData(['active' => 'devices', 'title' => lang('Devices.title')]);
 $post = static fn (string $url, string $label, ?string $confirm = null): string => form_open($url, array_filter(['class' => 'inline', 'data-confirm' => $confirm]))
@@ -31,25 +32,35 @@ $post = static fn (string $url, string $label, ?string $confirm = null): string 
     <section class="card">
         <h1><?= lang('Devices.title') ?></h1>
         <p class="hint"><?= lang('Devices.hint') ?></p>
+        <?php if ($freeDevices === []): ?>
+            <p class="notice"><?= lang('Devices.noFreeDevices') ?> <a href="<?= site_url('customers') ?>"><?= lang('Customers.title') ?></a></p>
+        <?php else: ?>
         <?= form_open('devices', ['class' => 'rule-form']) ?>
-            <label><?= lang('Devices.username') ?>
-                <span class="address-input"><input type="text" name="local_part" required maxlength="64" pattern="[A-Za-z0-9._+\-]+" placeholder="<?= esc(lang('Devices.localPartHint'), 'attr') ?>">@<select name="domain">
-                    <?php foreach ($domains as $d): ?><option value="<?= esc($d, 'attr') ?>" <?= str_starts_with($d, 'customer.') ? 'selected' : '' ?>><?= esc($d) ?></option><?php endforeach ?>
-                </select></span></label>
-            <label><?= lang('Senders.note') ?><input type="text" name="note" maxlength="255" placeholder="<?= esc(lang('Devices.notePlaceholder'), 'attr') ?>"></label>
+            <label><?= lang('Customers.device') ?>
+                <select name="device_id" required>
+                    <?php $pre = (int) service('request')->getGet('device'); ?>
+                    <?php foreach ($freeDevices as $fd): ?><option value="<?= (int) $fd['id'] ?>" <?= (int) $fd['id'] === $pre ? 'selected' : '' ?>><?= esc($fd['customer_name'] . ' – ' . $fd['name'] . ' (' . $fd['path'] . ')') ?></option><?php endforeach ?>
+                </select></label>
+            <label><?= lang('Senders.domain') ?><select name="domain">
+                <?php foreach ($domains as $d): ?><option value="<?= esc($d, 'attr') ?>" <?= str_starts_with($d, 'customer.') ? 'selected' : '' ?>><?= esc($d) ?></option><?php endforeach ?>
+            </select></label>
+            <label><?= lang('Senders.note') ?><input type="text" name="note" maxlength="255"></label>
             <button type="submit" class="button button-primary"><?= lang('Devices.create') ?></button>
         <?= form_close() ?>
+        <p class="hint"><?= lang('Devices.usernameHint') ?></p>
+        <?php endif ?>
 
         <?php if ($identities === []): ?>
             <p class="muted"><?= lang('Devices.none') ?></p>
         <?php else: ?>
             <table class="grid">
-                <thead><tr><th><?= lang('Devices.username') ?></th><th><?= lang('Senders.note') ?></th><th><?= lang('Devices.lastMail') ?></th>
+                <thead><tr><th><?= lang('Devices.username') ?></th><th><?= lang('Customers.device') ?></th><th><?= lang('Senders.note') ?></th><th><?= lang('Devices.lastMail') ?></th>
                     <th><?= lang('Devices.passwordSet') ?></th><th></th></tr></thead>
                 <tbody>
                 <?php foreach ($identities as $i): ?>
                     <tr class="<?= $i['enabled'] ? '' : 'disabled' ?>">
                         <td><code><?= esc($i['username']) ?></code><?php if (! $i['enabled']): ?> <span class="badge badge-blocked"><?= lang('Devices.disabled') ?></span><?php endif ?></td>
+                        <td><?= $i['device_name'] ? esc($i['customer_name'] . ' – ' . $i['device_name']) : '<span class="muted">–</span>' ?></td>
                         <td><?= esc($i['note'] ?? '') ?></td>
                         <td><?php if (isset($lastSeen[$i['username']])): ?><a href="<?= site_url('/') ?>?q=<?= urlencode($i['username']) ?>"><?= esc(rk_time($lastSeen[$i['username']], 'd.m.Y H:i')) ?></a><?php else: ?><span class="muted"><?= lang('Devices.never') ?></span><?php endif ?></td>
                         <td><?= esc(rk_time($i['password_set_at'], 'd.m.Y H:i')) ?></td>

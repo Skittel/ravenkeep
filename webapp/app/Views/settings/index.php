@@ -2,6 +2,7 @@
 /**
  * @var list<array> $domains
  * @var list<array> $networks
+ * @var list<array> $profiles
  */
 $this->setData(['active' => 'settings', 'title' => lang('Devices.navSettings')]);
 $del = static fn (string $url, string $confirm): string => form_open($url, ['class' => 'inline', 'data-confirm' => $confirm])
@@ -10,6 +11,31 @@ $del = static fn (string $url, string $confirm): string => form_open($url, ['cla
 <?= $this->extend('layout') ?>
 <?= $this->section('content') ?>
 <div class="page">
+    <section class="card">
+        <h1><?= lang('Customers.profilesTitle') ?></h1>
+        <p class="hint"><?= lang('Customers.profilesHint') ?></p>
+        <?= form_open('settings/profiles', ['class' => 'rule-form']) ?>
+            <label><?= lang('Customers.name') ?><input type="text" name="name" required maxlength="64" placeholder="<?= esc(lang('Customers.profilePlaceholder'), 'attr') ?>"></label>
+            <label><?= lang('Customers.hours') ?><input type="number" name="hours" required min="1" max="8760" value="24"></label>
+            <label><?= lang('Senders.note') ?><input type="text" name="note" maxlength="255"></label>
+            <button type="submit" class="button button-primary"><?= lang('Devices.add') ?></button>
+        <?= form_close() ?>
+        <?php if ($profiles !== []): ?>
+        <table class="grid">
+            <thead><tr><th><?= lang('Customers.name') ?></th><th><?= lang('Customers.hours') ?></th><th class="num"><?= lang('Customers.devices') ?></th><th><?= lang('Senders.note') ?></th><th></th></tr></thead>
+            <tbody>
+            <?php foreach ($profiles as $p): ?>
+                <tr><td><?= esc($p['name']) ?></td>
+                    <td><?= form_open('settings/profiles/' . $p['id'], ['class' => 'inline']) ?><input type="number" name="hours" min="1" max="8760" value="<?= (int) $p['hours'] ?>" class="hours-input"> h <button type="submit" class="button"><?= lang('Rules.save') ?></button><?= form_close() ?>
+                        <span class="role-ro-only"><?= (int) $p['hours'] ?> h</span></td>
+                    <td class="num"><?= (int) $p['devices'] ?></td><td><?= esc($p['note'] ?? '') ?></td>
+                    <td><?= $del('settings/profiles/' . $p['id'] . '/delete', lang('Customers.confirmDeleteProfile')) ?></td></tr>
+            <?php endforeach ?>
+            </tbody>
+        </table>
+        <?php endif ?>
+    </section>
+
     <section class="card">
         <h1><?= lang('Devices.domainsTitle') ?></h1>
         <p class="hint"><?= lang('Devices.domainsHint') ?></p>

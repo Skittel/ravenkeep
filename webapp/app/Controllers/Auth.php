@@ -98,6 +98,10 @@ class Auth extends BaseController
     /** Only paths within the application. */
     private function safeReturn(string $path): string
     {
-        return preg_match('#^/(?!/)[^\s\\\\]*$#', $path) && ! str_starts_with($path, '/auth/') ? $path : '/';
+        if ($path === '' || $path === '/') {
+            return '/dashboard'; // start page after sign-in
+        }
+
+        return preg_match('#^/(?!/)[^\s\\\\]*$#', $path) && ! str_starts_with($path, '/auth/') ? $path : '/dashboard';
     }
 }

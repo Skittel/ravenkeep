@@ -2,7 +2,9 @@
 
 namespace App\Controllers;
 
+use App\Libraries\Inventory\Inventory;
 use App\Libraries\Nodes\NodeConfigSync;
+use App\Libraries\Rules\RuleRunner;
 use App\Libraries\Nodes\NodeSettings;
 use CodeIgniter\HTTP\RedirectResponse;
 use InvalidArgumentException;
@@ -21,6 +23,8 @@ class Settings extends BaseController
         return view('settings/index', [
             'domains'  => $db->table('local_domains')->orderBy('domain')->get()->getResultArray(),
             'networks' => $db->table('admin_networks')->orderBy('network')->get()->getResultArray(),
+            'profiles' => $db->query('SELECT p.*, (SELECT COUNT(*) FROM devices d WHERE d.timeout_profile_id = p.id) AS devices
+                                      FROM timeout_profiles p ORDER BY p.hours')->getResultArray(),
         ]);
     }
 
@@ -42,6 +46,35 @@ class Settings extends BaseController
     public function deleteNetwork(int $id): RedirectResponse
     {
         return $this->change(static fn (NodeSettings $s) => $s->deleteNetwork($id));
+    }
+
+    public function addProfile(): RedirectResponse
+    {
+        return $this->profileChange(fn (Inventory $i) => $i->createProfile((string) $this->request->getPost('name'),
+            (int) $this->request->getPost('hours'), trim((string) $this->request->getPost('note')) ?: null));
+    }
+
+    public function updateProfile(int $id): RedirectResponse
+    {
+        return $this->profileChange(fn (Inventory $i) => $i->updateProfile($id, (int) $this->request->getPost('hours')));
+    }
+
+    public function deleteProfile(int $id): RedirectResponse
+    {
+        return $this->profileChange(static fn (Inventory $i) => $i->deleteProfile($id));
+    }
+
+    /** Timeout profiles live only in the web app (nothing to deliver to the nodes). */
+    private function profileChange(callable $change): RedirectResponse
+    {
+        try {
+            $db = db_connect();
+            $change(new Inventory($db, new RuleRunner($db)));
+        } catch (InvalidArgumentException $e) {
+            return redirect()->to(site_url('settings'))->with('error', lang('Customers.invalid_' . $e->getMessage()));
+        }
+
+        return redirect()->to(site_url('settings'))->with('success', lang('Customers.saved'));
     }
 
     private function change(callable $change): RedirectResponse

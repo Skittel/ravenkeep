@@ -25,7 +25,13 @@ class Devices extends BaseController
         }
 
         return view('devices/index', [
-            'identities' => $db->table('smtp_identities')->orderBy('username')->get()->getResultArray(),
+            'identities' => $db->table('smtp_identities s')->select('s.*, d.name AS device_name, d.path AS device_path, c.name AS customer_name')
+                ->join('devices d', 'd.id = s.device_id', 'left')->join('customers c', 'c.id = d.customer_id', 'left')
+                ->orderBy('s.username')->get()->getResultArray(),
+            'freeDevices' => $db->table('devices d')->select('d.id, d.path, d.name, c.name AS customer_name')
+                ->join('customers c', 'c.id = d.customer_id')
+                ->where('NOT EXISTS (SELECT 1 FROM smtp_identities s WHERE s.device_id = d.id)', null, false)
+                ->orderBy('d.path')->get()->getResultArray(),
             'domains'    => array_column($db->table('local_domains')->select('domain')->orderBy('domain')->get()->getResultArray(), 'domain'),
             'created'    => $created,
             'lastSeen'   => $this->lastSeen(),
@@ -37,13 +43,14 @@ class Devices extends BaseController
         $settings = new NodeSettings(db_connect());
 
         try {
-            [, $password] = $settings->createIdentity((string) $this->request->getPost('local_part'),
+            [, $password, $username] = $settings->createIdentityForDevice((int) $this->request->getPost('device_id'),
                 (string) $this->request->getPost('domain'), trim((string) $this->request->getPost('note')) ?: null);
         } catch (InvalidArgumentException $e) {
             return redirect()->to(site_url('devices'))->with('error', lang('Devices.invalid_' . $e->getMessage()));
         }
-        $username = strtolower(trim((string) $this->request->getPost('local_part'))) . '@' . strtolower(trim((string) $this->request->getPost('domain')));
-        $sync     = $this->sync();
+        $sync = $this->sync();
+        // the device's messages get its tags from now on
+        (new \App\Libraries\Rules\RuleRunner(db_connect()))->bumpVersion();
 
         return $this->index(['username' => $username, 'password' => $password, 'sync' => $sync]);
     }

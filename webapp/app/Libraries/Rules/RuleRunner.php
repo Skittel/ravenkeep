@@ -2,6 +2,7 @@
 
 namespace App\Libraries\Rules;
 
+use App\Libraries\Inventory\Inventory;
 use App\Libraries\MessageReader;
 use CodeIgniter\Database\BaseConnection;
 use Throwable;
@@ -11,8 +12,9 @@ use Throwable;
  *
  * Every rule change increases settings.rules_version. Messages with an older rules_version
  * (and new messages, which start with 0) are (re)evaluated in batches by the collector timer,
- * so a rule change never blocks the UI. Only accepted messages get rule tags (decision E-002);
- * for all others the rule tags are removed. Manual tags are never touched.
+ * so a rule change never blocks the UI. Only accepted messages get rule and device tags (E-002);
+ * for all others they are removed. Manual tags are never touched. Device tags (from the SMTP
+ * login's device) are set before the rules run, so rules can use them as conditions.
  */
 class RuleRunner
 {
@@ -22,6 +24,9 @@ class RuleRunner
     private array $tagIds = [];
 
     private ?RuleEngine $engine = null;
+
+    /** @var array<string, list<string>>|null tags per SMTP login (device tags) */
+    private ?array $loginTags = null;
 
     public function __construct(private readonly BaseConnection $db, private readonly ?string $archivePath = null)
     {
@@ -38,7 +43,8 @@ class RuleRunner
     public function bumpVersion(): void
     {
         $this->db->query("UPDATE settings SET value = CAST(value AS UNSIGNED) + 1 WHERE name = 'rules_version'");
-        $this->engine = null;
+        $this->engine    = null;
+        $this->loginTags = null;
     }
 
     /** Number of messages still waiting for (re-)evaluation. */
@@ -84,10 +90,20 @@ class RuleRunner
             ->where(['mt.message_id' => $message['id'], 'mt.source' => 'manual'])->get()->getResultArray();
         $manualNames = array_column($manual, 'name');
 
-        $tags = $message['status'] === 'accepted' ? $this->engine()->evaluate($message, $manualNames)['tags'] : [];
+        // Tags of the sending device (SMTP login -> device): customer, location, device and assigned tags
+        $deviceTags = [];
+        if ($message['status'] === 'accepted' && $message['mode'] === 'auth' && ! empty($message['sasl_username'])) {
+            $this->loginTags ??= (new Inventory($this->db, $this))->tagsBySmtpLogin();
+            $deviceTags = array_values(array_diff($this->loginTags[strtolower($message['sasl_username'])] ?? [], $manualNames));
+        }
+
+        $tags = $message['status'] === 'accepted' ? $this->engine()->evaluate($message, [...$manualNames, ...$deviceTags])['tags'] : [];
 
         $this->db->transStart();
-        $this->db->table('message_tags')->where(['message_id' => $message['id'], 'source' => 'rule'])->delete();
+        $this->db->table('message_tags')->where('message_id', $message['id'])->whereIn('source', ['rule', 'device'])->delete();
+        foreach ($deviceTags as $name) {
+            $this->db->table('message_tags')->insert(['message_id' => $message['id'], 'tag_id' => $this->tagId($name), 'source' => 'device']);
+        }
         foreach ($tags as $name => $ruleId) {
             $this->db->table('message_tags')->insert([
                 'message_id' => $message['id'], 'tag_id' => $this->tagId($name), 'source' => 'rule', 'rule_id' => $ruleId,

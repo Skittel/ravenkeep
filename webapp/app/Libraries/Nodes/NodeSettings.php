@@ -27,7 +27,7 @@ class NodeSettings
      *
      * @return array{0: int, 1: string}
      */
-    public function createIdentity(string $localPart, string $domain, ?string $note): array
+    public function createIdentity(string $localPart, string $domain, ?string $note, ?int $deviceId = null): array
     {
         $username = $this->validUsername($localPart, $domain);
         if ($this->db->table('smtp_identities')->where('username', $username)->countAllResults() > 0) {
@@ -36,11 +36,31 @@ class NodeSettings
         $password = self::generatePassword();
         $now      = gmdate('Y-m-d H:i:s');
         $this->db->table('smtp_identities')->insert([
-            'username' => $username, 'password_hash' => self::hash($password), 'note' => $note,
+            'device_id' => $deviceId, 'username' => $username, 'password_hash' => self::hash($password), 'note' => $note,
             'password_set_at' => $now, 'created_at' => $now, 'updated_at' => $now,
         ]);
 
         return [(int) $this->db->insertID(), $password];
+    }
+
+    /**
+     * SMTP login for a device: the user name is the device path (customer[.location].device) at the
+     * chosen local domain. A device has at most one login.
+     *
+     * @return array{0: int, 1: string, 2: string} [id, plain password, user name]
+     */
+    public function createIdentityForDevice(int $deviceId, string $domain, ?string $note): array
+    {
+        $device = $this->db->table('devices')->where('id', $deviceId)->get()->getRowArray();
+        if ($device === null) {
+            throw new InvalidArgumentException('device');
+        }
+        if ($this->db->table('smtp_identities')->where('device_id', $deviceId)->countAllResults() > 0) {
+            throw new InvalidArgumentException('device_has_login');
+        }
+        [$id, $password] = $this->createIdentity($device['path'], $domain, $note, $deviceId);
+
+        return [$id, $password, "{$device['path']}@" . strtolower(trim($domain))];
     }
 
     /** Set a new generated password. Returns the plain password (shown once). */

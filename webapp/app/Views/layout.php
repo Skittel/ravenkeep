@@ -24,12 +24,19 @@ $user   = session('user');
     <header class="topbar">
         <a class="brand" href="<?= site_url('/') ?>"><img src="<?= base_url('assets/icon.png') ?>" alt="" class="brand-icon"><?= lang('Ui.appName') ?></a>
         <nav class="mainnav">
-            <a href="<?= site_url('/') ?>" class="<?= $active === 'messages' ? 'active' : '' ?>"><?= lang('Senders.navMessages') ?></a>
-            <a href="<?= site_url('rules') ?>" class="<?= $active === 'rules' ? 'active' : '' ?>"><?= lang('Rules.nav') ?></a>
-            <a href="<?= site_url('senders') ?>" class="<?= $active === 'senders' ? 'active' : '' ?>"><?= lang('Senders.nav') ?></a>
-            <a href="<?= site_url('devices') ?>" class="<?= $active === 'devices' ? 'active' : '' ?>"><?= lang('Devices.nav') ?></a>
-            <a href="<?= site_url('nodes') ?>" class="<?= $active === 'nodes' ? 'active' : '' ?>"><?= lang('Senders.navNodes') ?></a>
-            <a href="<?= site_url('settings') ?>" class="<?= $active === 'settings' ? 'active' : '' ?>"><?= lang('Devices.navSettings') ?></a>
+            <?php foreach ([
+                'dashboard' => ['dashboard', lang('Customers.navDashboard')],
+                'messages'  => ['/', lang('Senders.navMessages')],
+                'customers' => ['customers', lang('Customers.nav')],
+                'rules'     => ['rules', lang('Rules.nav')],
+                'tags'      => ['tags', lang('Customers.navTags')],
+                'senders'   => ['senders', lang('Senders.nav')],
+                'devices'   => ['devices', lang('Devices.nav')],
+                'nodes'     => ['nodes', lang('Senders.navNodes')],
+                'settings'  => ['settings', lang('Devices.navSettings')],
+            ] as $key => [$url, $label]): ?>
+                <a href="<?= site_url($url) ?>" class="<?= $active === $key ? 'active' : '' ?>"><?= $label ?></a>
+            <?php endforeach ?>
         </nav>
         <form class="search" method="get" action="<?= site_url('/') ?>">
             <?php if (! empty($search['status'])): ?>

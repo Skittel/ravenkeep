@@ -43,4 +43,8 @@ return [
     'invalid_last_domain'  => 'The last domain cannot be removed.',
     'invalid_domain_in_use' => 'The domain is still used by devices.',
     'invalid_network'      => 'Invalid address or network (prefix at least /8).',
+    'noFreeDevices' => 'All devices already have a login. Create new devices under',
+    'usernameHint' => 'The user name is derived from customer, location and device, e.g. customer.location.device@customer.ravenkeep.cloud.',
+    'invalid_device' => 'Unknown device.',
+    'invalid_device_has_login' => 'The device already has a login.',
 ];
