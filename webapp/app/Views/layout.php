@@ -14,13 +14,15 @@ $user   = session('user');
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title><?= esc(($title ?? null) ? $title . ' – ' . lang('Ui.appName') : lang('Ui.appName')) ?></title>
+    <link rel="icon" href="<?= base_url('favicon.ico') ?>" sizes="any">
+    <link rel="apple-touch-icon" href="<?= base_url('assets/icon.png') ?>">
     <link rel="stylesheet" href="<?= base_url('assets/app.css') ?>">
     <script src="<?= base_url('assets/app.js') ?>" defer></script>
 </head>
 <body class="<?= ($user['role'] ?? '') === 'rw' ? 'role-rw' : 'role-ro' ?>">
 <div class="app <?= $active === 'messages' ? 'app-mail' : 'app-page' ?>">
     <header class="topbar">
-        <a class="brand" href="<?= site_url('/') ?>"><?= lang('Ui.appName') ?></a>
+        <a class="brand" href="<?= site_url('/') ?>"><img src="<?= base_url('assets/icon.png') ?>" alt="" class="brand-icon"><?= lang('Ui.appName') ?></a>
         <nav class="mainnav">
             <a href="<?= site_url('/') ?>" class="<?= $active === 'messages' ? 'active' : '' ?>"><?= lang('Senders.navMessages') ?></a>
             <a href="<?= site_url('rules') ?>" class="<?= $active === 'rules' ? 'active' : '' ?>"><?= lang('Rules.nav') ?></a>

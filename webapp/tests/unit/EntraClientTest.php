@@ -90,6 +90,7 @@ final class EntraClientTest extends CIUnitTestCase
         $this->assertStringStartsWith("https://login.microsoftonline.com/{$this->config->tenantId}/oauth2/v2.0/authorize?", $request['url']);
         $this->assertSame('code', $query['response_type']);
         $this->assertSame('S256', $query['code_challenge_method']);
+        $this->assertSame('select_account', $query['prompt']);
         $this->assertSame(EntraClient::base64url(hash('sha256', $request['verifier'], true)), $query['code_challenge']);
         $this->assertSame($request['state'], $query['state']);
         $this->assertSame($request['nonce'], $query['nonce']);

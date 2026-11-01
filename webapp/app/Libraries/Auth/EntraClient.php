@@ -47,6 +47,7 @@ class EntraClient
             'redirect_uri'          => $redirectUri,
             'response_mode'         => 'query',
             'scope'                 => 'openid profile email',
+            'prompt'                => 'select_account', // always let the user choose the account
             'state'                 => $state,
             'nonce'                 => $nonce,
             'code_challenge'        => self::base64url(hash('sha256', $verifier, true)),
@@ -117,6 +118,22 @@ class EntraClient
         }
 
         return null;
+    }
+
+    /** Why no role was found – for the log (contains no secrets, only group object ids). */
+    public function groupDiagnosis(stdClass $claims): string
+    {
+        if (isset($claims->_claim_names->groups) || isset($claims->hasgroups)) {
+            return 'group overage: too many groups for the token – configure "groups assigned to the application" in the token configuration';
+        }
+        if (! isset($claims->groups)) {
+            return 'no groups claim in the ID token – add a groups claim (security groups) in the token configuration; claims present: '
+                . implode(',', array_keys(get_object_vars($claims)));
+        }
+        $groups = array_map('strval', (array) $claims->groups);
+
+        return sprintf('groups claim has %d ids [%s]; configured rw=%s ro=%s', count($groups), implode(',', $groups),
+            $this->config->groupRw ?: '-', $this->config->groupRo ?: '-');
     }
 
     public function logoutUrl(string $postLogoutRedirectUri): string

@@ -176,3 +176,8 @@ table.grid tr.disabled td { opacity: .55; }
 .auth-box h1 { font-size: 18px; margin: 12px 0 8px; }
 .auth-box p { color: var(--muted); margin: 0 0 20px; }
 .brand-dark { font-weight: 700; font-size: 20px; letter-spacing: .5px; }
+
+/* --- Logo (0.2.4) --- */
+.brand { display: flex; align-items: center; gap: 10px; }
+.brand-icon { width: 34px; height: 34px; background: #fff; border-radius: 7px; padding: 2px; }
+.auth-logo { width: 220px; height: auto; display: block; margin: 0 auto 4px; }

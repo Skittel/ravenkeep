@@ -1,0 +1,139 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg xmlns="http://www.w3.org/2000/svg"
+     xmlns:xlink="http://www.w3.org/1999/xlink"
+     width="1254" height="1254" viewBox="0 0 1254 1254" role="img" aria-labelledby="title desc">
+  <title id="title">Ravenkeep – Rabe und Burg</title>
+  <desc id="desc">Neu gezeichnetes Vektorlogo: ein schwarzer Rabe links mit rot leuchtendem Auge, rechts eine mittelalterliche schwarze Burg, darunter Ravenkeep.</desc>
+  <!-- Alle Illustrationselemente sind eigens gezeichnete SVG-Vektorformen.
+       Keine eingebetteten PNG/JPEG-Dateien, keine Raster-Vektorisierung. -->
+  <defs>
+    <radialGradient id="paper" cx="52%" cy="44%" r="77%">
+      <stop offset="0" stop-color="#ffffff"/>
+      <stop offset="0.77" stop-color="#f9f9f9"/>
+      <stop offset="1" stop-color="#f2f2f2"/>
+    </radialGradient>
+    <linearGradient id="beak" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#424448"/>
+      <stop offset="0.45" stop-color="#292b2e"/>
+      <stop offset="1" stop-color="#17181a"/>
+    </linearGradient>
+    <linearGradient id="redEye" x1="0" y1="0" x2="0.8" y2="1">
+      <stop offset="0" stop-color="#ff282f"/>
+      <stop offset="0.55" stop-color="#ff3035"/>
+      <stop offset="1" stop-color="#d81924"/>
+    </linearGradient>
+    <!-- Keep the eye glow localized. Feather and head remain fully opaque. -->
+    <filter id="eyeGlow" x="-85%" y="-85%" width="270%" height="270%">
+      <feGaussianBlur stdDeviation="7"/>
+    </filter>
+  </defs>
+  <path id="background" fill="url(#paper)" d="M0 0H1254V1254H0Z"/>
+
+  <!-- CASTLE / KEEP: a clean geometric fortress, independently editable. -->
+  <g id="keep" fill="#17181a">
+    <!-- Left outer wall and battlements -->
+    <path id="left-wall" d="M509 809 L512 708 L565 693 L565 725 L601 714 L601 680
+      L645 667 L645 701 L680 691 L680 657 L726 642 L722 809 Z"/>
+    <!-- Right outer wall and battlements -->
+    <path id="right-wall" d="M961 813 L980 649 L1017 664 L1017 697 L1047 706 L1047 670
+      L1078 682 L1078 709 L1105 720 L1105 690 L1142 701 L1142 877
+      Q1057 840 961 835 Z"/>
+    <!-- Four individually modeled crenellations, as in the reference. -->
+    <path id="battlement-1" d="M719 507 L758 494 L758 542 L716 556 Z"/>
+    <path id="battlement-2" d="M794 482 L837 468 L837 511 L793 524 Z"/>
+    <path id="battlement-3" d="M876 468 L918 480 L918 519 L876 508 Z"/>
+    <path id="battlement-4" d="M951 486 L994 499 L997 575 L979 567 L979 534 L951 524 Z"/>
+    <!-- Roofline, tower, and two deliberately hollow Gothic windows. -->
+    <path id="tower" fill-rule="evenodd" d="
+      M714 581 L856 538 L996 574 L965 606 L966 816
+      Q930 829 892 833 L818 832 L741 807 L744 607 Z
+      M835 654 L874 654 L874 614 Q874 599 855 586 Q835 599 835 615 Z
+      M817 841 L892 841 L892 757 Q892 724 855 701 Q817 721 817 758 Z"/>
+    <!-- Clear, wide light seams on both sides of the main tower. -->
+    <path id="tower-seam-left" fill="#fafafa" d="M720 802 L743 804 L743 604 L728 594 Z"/>
+    <path id="tower-seam-right" fill="#fafafa" d="M964 606 L965 811 L986 816 L979 597 Z"/>
+    <!-- Rampart below the raven and the keep: slightly curved like the reference. -->
+    <path id="footing" d="M278 896 Q416 849 568 838 Q716 822 870 833
+      Q1030 840 1155 892 Q997 858 851 838 Q619 817 444 861 Q347 879 278 896 Z"/>
+  </g>
+
+  <!-- RAVEN: an intentional single black silhouette, NOT a bitmap tracing.
+       Large clean cutouts define individual feather wings and neck. -->
+  <g id="raven">
+    <path id="raven-silhouette" fill="#17181a" d="
+      M277 245
+      C368 199 454 203 521 229
+      C580 250 622 289 646 333
+      C681 346 720 379 742 414
+      C758 439 765 462 768 474
+      C728 446 689 432 655 430
+      C620 428 592 433 575 442
+      C548 457 539 475 548 504
+      C553 525 566 542 585 556
+      C559 546 538 526 526 506
+      C542 550 586 587 634 618
+      C582 617 531 639 490 673
+      C445 711 419 761 410 820
+      C353 840 300 862 263 885
+      C289 816 343 723 425 672
+      C332 711 245 803 197 902
+      C162 859 151 782 190 712
+      C198 697 210 683 226 679
+      C210 711 208 737 210 762
+      C245 669 330 581 454 535
+      C303 571 166 664 106 774
+      C114 627 205 507 354 441
+      C263 454 189 489 135 540
+      C162 455 228 379 297 342
+      C243 350 197 369 169 393
+      C217 310 293 270 374 253
+      C341 246 311 244 277 245 Z"/>
+    <!-- Finer, broad feather dividers: deliberately smooth, never speckled -->
+    <path fill="#fafafa" d="M108 771
+      C159 648 303 568 455 534
+      C327 580 192 672 108 771 Z"/>
+    <path fill="#fafafa" d="M263 886
+      C295 799 350 720 426 672
+      C345 748 298 829 263 886 Z"/>
+    <path fill="#fafafa" d="M209 762
+      C207 732 214 699 226 681
+      C220 705 215 739 209 762 Z"/>
+    <!-- Crisp eyebrow highlight -->
+    <path fill="#fafafa" d="M432 276 C474 272 515 289 551 318
+      C508 293 473 281 432 276 Z"/>
+    <!-- Subtle upper beak, clearly bounded, no noisy paths -->
+    <path id="raven-beak" fill="url(#beak)" d="
+      M594 345 Q619 338 647 330
+      C700 350 756 411 768 474
+      C731 441 692 418 654 408
+      C614 395 569 386 515 397
+      C569 371 615 369 657 379
+      C640 365 621 351 594 345 Z"/>
+    <!-- Lower beak split: a broad smooth dark segment -->
+    <path fill="#242527" d="M549 429 C591 409 664 419 718 446
+      C674 427 621 418 583 435 Q559 446 548 464
+      Q544 444 549 429 Z"/>
+    <!-- Localized red eye and optional blur behind it. -->
+    <path id="eye-light" fill="#f21f29" opacity=".65" filter="url(#eyeGlow)"
+      d="M500 310 Q531 327 565 337 Q547 355 526 350 Q505 344 500 310 Z"/>
+    <path id="eye" fill="url(#redEye)" d="M500 310
+      C517 318 543 330 565 338
+      C550 350 539 353 527 349
+      C510 343 500 328 500 310 Z"/>
+  </g>
+
+  <!-- WORDMARK converted to genuine curves; no font installation is required.
+       Liberation Sans Bold outlines, sized and positioned to the source artwork. -->
+  <g id="wordmark" fill="#17181a"
+     transform="translate(87.575 1078) scale(0.09975586 -0.09975586)">
+    <path d="M1105 0 778 535H432V0H137V1409H841Q1093 1409 1230.0 1300.5Q1367 1192 1367 989Q1367 841 1283.0 733.5Q1199 626 1056 592L1437 0ZM1070 977Q1070 1180 810 1180H432V764H818Q942 764 1006.0 820.0Q1070 876 1070 977Z" transform="translate(0.000 0)"/>
+    <path d="M393 -20Q236 -20 148.0 65.5Q60 151 60 306Q60 474 169.5 562.0Q279 650 487 652L720 656V711Q720 817 683.0 868.5Q646 920 562 920Q484 920 447.5 884.5Q411 849 402 767L109 781Q136 939 253.5 1020.5Q371 1102 574 1102Q779 1102 890.0 1001.0Q1001 900 1001 714V320Q1001 229 1021.5 194.5Q1042 160 1090 160Q1122 160 1152 166V14Q1127 8 1107.0 3.0Q1087 -2 1067.0 -5.0Q1047 -8 1024.5 -10.0Q1002 -12 972 -12Q866 -12 815.5 40.0Q765 92 755 193H749Q631 -20 393 -20ZM720 501 576 499Q478 495 437.0 477.5Q396 460 374.5 424.0Q353 388 353 328Q353 251 388.5 213.5Q424 176 483 176Q549 176 603.5 212.0Q658 248 689.0 311.5Q720 375 720 446Z" transform="translate(1479.059 0)"/>
+    <path d="M731 0H395L8 1082H305L494 477Q509 427 565 227Q575 268 606.0 371.0Q637 474 836 1082H1130Z" transform="translate(2618.039 0)"/>
+    <path d="M586 -20Q342 -20 211.0 124.5Q80 269 80 546Q80 814 213.0 958.0Q346 1102 590 1102Q823 1102 946.0 947.5Q1069 793 1069 495V487H375Q375 329 433.5 248.5Q492 168 600 168Q749 168 788 297L1053 274Q938 -20 586 -20ZM586 925Q487 925 433.5 856.0Q380 787 377 663H797Q789 794 734.0 859.5Q679 925 586 925Z" transform="translate(3757.020 0)"/>
+    <path d="M844 0V607Q844 892 651 892Q549 892 486.5 804.5Q424 717 424 580V0H143V840Q143 927 140.5 982.5Q138 1038 135 1082H403Q406 1063 411.0 980.5Q416 898 416 867H420Q477 991 563.0 1047.0Q649 1103 768 1103Q940 1103 1032.0 997.0Q1124 891 1124 687V0Z" transform="translate(4896.000 0)"/>
+    <path d="M834 0 545 490 424 406V0H143V1484H424V634L810 1082H1112L732 660L1141 0Z" transform="translate(6146.980 0)"/>
+    <path d="M586 -20Q342 -20 211.0 124.5Q80 269 80 546Q80 814 213.0 958.0Q346 1102 590 1102Q823 1102 946.0 947.5Q1069 793 1069 495V487H375Q375 329 433.5 248.5Q492 168 600 168Q749 168 788 297L1053 274Q938 -20 586 -20ZM586 925Q487 925 433.5 856.0Q380 787 377 663H797Q789 794 734.0 859.5Q679 925 586 925Z" transform="translate(7285.961 0)"/>
+    <path d="M586 -20Q342 -20 211.0 124.5Q80 269 80 546Q80 814 213.0 958.0Q346 1102 590 1102Q823 1102 946.0 947.5Q1069 793 1069 495V487H375Q375 329 433.5 248.5Q492 168 600 168Q749 168 788 297L1053 274Q938 -20 586 -20ZM586 925Q487 925 433.5 856.0Q380 787 377 663H797Q789 794 734.0 859.5Q679 925 586 925Z" transform="translate(8424.941 0)"/>
+    <path d="M1167 546Q1167 275 1058.5 127.5Q950 -20 752 -20Q638 -20 553.5 29.5Q469 79 424 172H418Q424 142 424 -10V-425H143V833Q143 986 135 1082H408Q413 1064 416.5 1011.0Q420 958 420 906H424Q519 1105 770 1105Q959 1105 1063.0 959.5Q1167 814 1167 546ZM874 546Q874 910 651 910Q539 910 479.5 812.0Q420 714 420 538Q420 363 479.5 267.5Q539 172 649 172Q874 172 874 546Z" transform="translate(9563.922 0)"/>
+  </g>
+</svg>

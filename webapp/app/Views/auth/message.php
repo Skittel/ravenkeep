@@ -13,11 +13,13 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title><?= esc($title) ?> – <?= lang('Ui.appName') ?></title>
+    <link rel="icon" href="<?= base_url('favicon.ico') ?>" sizes="any">
+    <link rel="apple-touch-icon" href="<?= base_url('assets/icon.png') ?>">
     <link rel="stylesheet" href="<?= base_url('assets/app.css') ?>">
 </head>
 <body class="auth-page">
 <main class="auth-box">
-    <div class="brand-dark"><?= lang('Ui.appName') ?></div>
+    <img src="<?= base_url('assets/logo.svg') ?>" alt="<?= esc(lang('Ui.appName'), 'attr') ?>" class="auth-logo">
     <h1><?= esc($title) ?></h1>
     <p><?= esc($message) ?></p>
     <?php if ($login): ?>

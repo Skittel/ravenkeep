@@ -61,7 +61,7 @@ class Auth extends BaseController
             'login_at' => time(),
         ];
         if ($user['role'] === null) {
-            log_message('warning', "Entra sign-in without Ravenkeep group: {$user['username']} ({$user['oid']})");
+            log_message('warning', "Entra sign-in without Ravenkeep group: {$user['username']} ({$user['oid']}) – " . $client->groupDiagnosis($claims));
 
             return $this->denied(lang('Auth.noGroup', [$user['username'] ?: $user['name']]), 403);
         }
