@@ -9,8 +9,8 @@ use CodeIgniter\Config\BaseConfig;
  * outside the repository (default /etc/ravenkeep/entra.env, readable by the web server only):
  *
  *   ENTRA_TENANT_ID=...      ENTRA_CLIENT_ID=...      ENTRA_CLIENT_SECRET=...
- *   ENTRA_GROUP_RW=<object id of the read/write group>
- *   ENTRA_GROUP_RO=<object id of the read-only group>
+ *   ENTRA_GROUP_RW=<object id of the read/write group>   (or ENTRA_ALLOWED_GROUP_RW_ID)
+ *   ENTRA_GROUP_RO=<object id of the read-only group>    (or ENTRA_ALLOWED_GROUP_RO_ID)
  */
 class Entra extends BaseConfig
 {
@@ -36,7 +36,8 @@ class Entra extends BaseConfig
             return;
         }
         $map = ['ENTRA_TENANT_ID' => 'tenantId', 'ENTRA_CLIENT_ID' => 'clientId', 'ENTRA_CLIENT_SECRET' => 'clientSecret',
-            'ENTRA_GROUP_RW' => 'groupRw', 'ENTRA_GROUP_RO' => 'groupRo'];
+            'ENTRA_GROUP_RW' => 'groupRw', 'ENTRA_GROUP_RO' => 'groupRo',
+            'ENTRA_ALLOWED_GROUP_RW_ID' => 'groupRw', 'ENTRA_ALLOWED_GROUP_RO_ID' => 'groupRo']; // both spellings accepted
         foreach (file($file, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES) ?: [] as $line) {
             [$key, $value] = array_pad(explode('=', $line, 2), 2, '');
             $key = trim($key);
