@@ -102,6 +102,21 @@ final class InventoryPagesTest extends CIUnitTestCase
         $this->seeInDatabase('tags', ['id' => $tag, 'name' => 'typ:storage']);
     }
 
+    public function testRuleEditorOffersAutomaticTagsOfCustomersWithoutDevices(): void
+    {
+        $inventory = new Inventory($this->db, new RuleRunner($this->db));
+        $customer  = $inventory->createCustomer('skit', 'SKIT', null);
+        $inventory->createLocation($customer, 'office', 'Office', null);
+
+        $result = $this->as('rw')->get('rules/new');
+        $result->assertOK();
+        preg_match('#<script type="application/json" id="rk-tags">(.*?)</script>#s', $result->getBody(), $m);
+        $names = array_column(json_decode($m[1], true), 'n');
+        foreach (['kunde:skit', 'standort:skit.office', 'kunde:acme', 'geraet:acme.branch2.nas05', 'typ:nas'] as $name) {
+            $this->assertContains($name, $names);
+        }
+    }
+
     public function testReadOnlyCannotChangeInventory(): void
     {
         $this->as('ro')->post('customers', ['code' => 'x', 'name' => 'X'])->assertStatus(403);

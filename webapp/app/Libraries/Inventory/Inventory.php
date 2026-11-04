@@ -205,6 +205,28 @@ class Inventory
     }
 
     /**
+     * Automatic tags of all customers, locations and devices – also those not used by any message yet
+     * (offered in the rule editor's tag picker).
+     *
+     * @return list<string>
+     */
+    public function automaticTagNames(): array
+    {
+        $names = [];
+        foreach ($this->db->table('customers')->select('code')->get()->getResultArray() as $c) {
+            $names[] = 'kunde:' . $c['code'];
+        }
+        foreach ($this->db->table('locations l')->select('c.code AS customer, l.code')->join('customers c', 'c.id = l.customer_id')->get()->getResultArray() as $l) {
+            $names[] = 'standort:' . $l['customer'] . '.' . $l['code'];
+        }
+        foreach ($this->db->table('devices')->select('path')->get()->getResultArray() as $d) {
+            $names[] = 'geraet:' . $d['path'];
+        }
+
+        return $names;
+    }
+
+    /**
      * Tags per SMTP login (lower-case user name), used when messages are evaluated.
      *
      * @return array<string, list<string>>

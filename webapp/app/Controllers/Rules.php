@@ -2,6 +2,8 @@
 
 namespace App\Controllers;
 
+use App\Libraries\Inventory\Inventory;
+
 use App\Libraries\Rules\RuleRepository;
 use App\Libraries\Rules\RuleRunner;
 use CodeIgniter\Exceptions\PageNotFoundException;
@@ -40,7 +42,7 @@ class Rules extends BaseController
         return view('rules/edit', [
             'rule'    => $rule,
             'preview' => $rule !== null ? $this->repository()->preview($rule) : null,
-            'tagNames' => array_column(db_connect()->table('tags')->select('name')->orderBy('name')->get()->getResultArray(), 'name'),
+            'tagNames' => $this->tagNames(),
         ]);
     }
 
@@ -88,5 +90,16 @@ class Rules extends BaseController
         $this->repository()->move($id, $direction === 'up' ? -1 : 1);
 
         return redirect()->to(site_url('rules'));
+    }
+
+    /** @return list<string> existing tags plus the automatic tags of customers, locations and devices */
+    private function tagNames(): array
+    {
+        $db    = db_connect();
+        $names = array_column($db->table('tags')->select('name')->get()->getResultArray(), 'name');
+        $names = array_values(array_unique([...$names, ...(new Inventory($db, new RuleRunner($db)))->automaticTagNames()]));
+        sort($names, SORT_STRING);
+
+        return $names;
     }
 }
