@@ -12,9 +12,14 @@ use Throwable;
  *
  * Every rule change increases settings.rules_version. Messages with an older rules_version
  * (and new messages, which start with 0) are (re)evaluated in batches by the collector timer,
- * so a rule change never blocks the UI. Only accepted messages get rule and device tags (E-002);
- * for all others they are removed. Manual tags are never touched. Device tags (from the SMTP
- * login's device) are set before the rules run, so rules can use them as conditions.
+ * so a rule change never blocks the UI. Only accepted messages get rule, device and address tags
+ * (E-002); for all others they are removed. Manual tags are never touched.
+ *
+ * Automatic tags are set before the rules run, so rules can use them as conditions:
+ *   device  – tags of the sending device (SMTP login, or the device named by the address)
+ *   address – tags from the recipient address of a domain with parse_address (E-016)
+ * Fixed rules always win: if a rule sets a tag of a type (e.g. kunde:), automatic tags of that
+ * type are dropped.
  */
 class RuleRunner
 {
@@ -27,6 +32,12 @@ class RuleRunner
 
     /** @var array<string, list<string>>|null tags per SMTP login (device tags) */
     private ?array $loginTags = null;
+
+    /** @var array<string, list<string>>|null tags per device path */
+    private ?array $pathTags = null;
+
+    /** @var list<string>|null domains whose recipient addresses carry tags */
+    private ?array $addressDomains = null;
 
     public function __construct(private readonly BaseConnection $db, private readonly ?string $archivePath = null)
     {
@@ -43,8 +54,10 @@ class RuleRunner
     public function bumpVersion(): void
     {
         $this->db->query("UPDATE settings SET value = CAST(value AS UNSIGNED) + 1 WHERE name = 'rules_version'");
-        $this->engine    = null;
-        $this->loginTags = null;
+        $this->engine         = null;
+        $this->loginTags      = null;
+        $this->pathTags       = null;
+        $this->addressDomains = null;
     }
 
     /** Number of messages still waiting for (re-)evaluation. */
@@ -90,27 +103,71 @@ class RuleRunner
             ->where(['mt.message_id' => $message['id'], 'mt.source' => 'manual'])->get()->getResultArray();
         $manualNames = array_column($manual, 'name');
 
-        // Tags of the sending device (SMTP login -> device): customer, location, device and assigned tags
-        $deviceTags = [];
-        if ($message['status'] === 'accepted' && $message['mode'] === 'auth' && ! empty($message['sasl_username'])) {
-            $this->loginTags ??= (new Inventory($this->db, $this))->tagsBySmtpLogin();
-            $deviceTags = array_values(array_diff($this->loginTags[strtolower($message['sasl_username'])] ?? [], $manualNames));
+        [$deviceTags, $addressTags] = $message['status'] === 'accepted' ? $this->automaticTags($message, $manualNames) : [[], []];
+
+        $tags = $message['status'] === 'accepted'
+            ? $this->engine()->evaluate($message, [...$manualNames, ...$deviceTags, ...$addressTags])['tags'] : [];
+
+        // Fixed rules win over automatic tags of the same type
+        $ruleTypes = array_filter(array_map([TagName::class, 'type'], array_keys($tags)));
+        if ($ruleTypes !== []) {
+            $keep        = static fn (string $t): bool => ! in_array(TagName::type($t), $ruleTypes, true);
+            $deviceTags  = array_values(array_filter($deviceTags, $keep));
+            $addressTags = array_values(array_filter($addressTags, $keep));
         }
 
-        $tags = $message['status'] === 'accepted' ? $this->engine()->evaluate($message, [...$manualNames, ...$deviceTags])['tags'] : [];
-
         $this->db->transStart();
-        $this->db->table('message_tags')->where('message_id', $message['id'])->whereIn('source', ['rule', 'device'])->delete();
+        $this->db->table('message_tags')->where('message_id', $message['id'])->whereIn('source', ['rule', 'device', 'address'])->delete();
         foreach ($deviceTags as $name) {
             $this->db->table('message_tags')->insert(['message_id' => $message['id'], 'tag_id' => $this->tagId($name), 'source' => 'device']);
         }
+        foreach ($addressTags as $name) {
+            $this->db->table('message_tags')->insert(['message_id' => $message['id'], 'tag_id' => $this->tagId($name), 'source' => 'address']);
+        }
         foreach ($tags as $name => $ruleId) {
+            if (in_array($name, $deviceTags, true) || in_array($name, $addressTags, true)) {
+                continue; // already set automatically
+            }
             $this->db->table('message_tags')->insert([
                 'message_id' => $message['id'], 'tag_id' => $this->tagId($name), 'source' => 'rule', 'rule_id' => $ruleId,
             ]);
         }
         $this->db->table('messages')->where('id', $message['id'])->update($update);
         $this->db->transComplete();
+    }
+
+    /**
+     * Device tags (SMTP login, or the device named by the recipient address) and address tags.
+     *
+     * @param list<string> $manualNames
+     *
+     * @return array{0: list<string>, 1: list<string>}
+     */
+    private function automaticTags(array $message, array $manualNames): array
+    {
+        $device = [];
+        if ($message['mode'] === 'auth' && ! empty($message['sasl_username'])) {
+            $this->loginTags ??= (new Inventory($this->db, $this))->tagsBySmtpLogin();
+            $device = $this->loginTags[strtolower($message['sasl_username'])] ?? [];
+        }
+
+        $address   = [];
+        $recipient = strtolower((string) $message['envelope_recipient']);
+        $domain    = substr((string) strrchr($recipient, '@'), 1);
+        $this->addressDomains ??= array_column($this->db->table('local_domains')->select('domain')->where('parse_address', 1)->get()->getResultArray(), 'domain');
+        if ($domain !== '' && in_array($domain, $this->addressDomains, true)) {
+            $address = AddressTags::tags($recipient);
+            $parsed  = AddressTags::parse($recipient);
+            if ($device === [] && $parsed !== null) {
+                $this->pathTags ??= (new Inventory($this->db, $this))->tagsByPath();
+                $device = $this->pathTags[$parsed['customer'] . '.' . $parsed['device']] ?? [];
+            }
+        }
+
+        $device  = array_values(array_diff(array_unique($device), $manualNames));
+        $address = array_values(array_diff(array_unique($address), $manualNames, $device));
+
+        return [$device, $address];
     }
 
     /** Id of a tag, created if necessary. */

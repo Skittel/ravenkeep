@@ -69,4 +69,6 @@ return [
     'op_wildcard'      => 'passt auf Muster',
     'op_has'           => 'ist vorhanden',
     'op_has_not'       => 'fehlt',
+    'fromDevice' => 'automatisch vom Gerät',
+    'fromAddress' => 'automatisch aus der Empfängeradresse',
 ];

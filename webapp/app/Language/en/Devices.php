@@ -47,4 +47,8 @@ return [
     'usernameHint' => 'The user name is derived from customer, location and device, e.g. customer.location.device@customer.ravenkeep.cloud.',
     'invalid_device' => 'Unknown device.',
     'invalid_device_has_login' => 'The device already has a login.',
+    'addressTags' => 'Address = device',
+    'addressTagsOn' => 'yes',
+    'addressTagsOff' => 'no',
+    'addressTagsHint' => 'With “yes” the recipient address yields tags automatically (E-016): device_customer, device_location_customer or device_type_location_customer; dots separate levels, e.g. gc.pm2610_proxmox_2og.hb_atc. Fixed rules take precedence.',
 ];

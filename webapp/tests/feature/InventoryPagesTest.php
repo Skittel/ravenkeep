@@ -52,7 +52,7 @@ final class InventoryPagesTest extends CIUnitTestCase
         $result = $this->as('ro')->get('dashboard');
         $result->assertOK();
         $result->assertSee('NAS05');
-        $result->assertSee('acme.branch2.nas05');
+        $result->assertSee('acme.nas05');
         $this->dump('dashboard', $result->getBody());
     }
 
@@ -60,7 +60,7 @@ final class InventoryPagesTest extends CIUnitTestCase
     {
         $result = $this->as('rw')->get('customers/' . $this->customer);
         $result->assertOK();
-        foreach (['kunde - acme', 'standort - acme.branch2', 'geraet - acme.branch2.nas05', 'typ - nas', 'qnap', 'Daily'] as $text) {
+        foreach (['kunde - acme', 'standort - acme.branch2', 'geraet - acme.nas05', 'typ - nas', 'qnap', 'Daily'] as $text) {
             $result->assertSee($text);
         }
         $result->assertDontSee('>typ:nas<'); // tags are displayed with " - " instead of ":"
@@ -112,7 +112,7 @@ final class InventoryPagesTest extends CIUnitTestCase
         $result->assertOK();
         preg_match('#<script type="application/json" id="rk-tags">(.*?)</script>#s', $result->getBody(), $m);
         $names = array_column(json_decode($m[1], true), 'n');
-        foreach (['kunde:skit', 'standort:skit.office', 'kunde:acme', 'geraet:acme.branch2.nas05', 'typ:nas'] as $name) {
+        foreach (['kunde:skit', 'standort:skit.office', 'kunde:acme', 'geraet:acme.nas05', 'typ:nas'] as $name) {
             $this->assertContains($name, $names);
         }
     }

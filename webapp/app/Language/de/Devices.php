@@ -47,4 +47,8 @@ return [
     'usernameHint' => 'Der Benutzername ergibt sich aus Kunde, Standort und Gerät, z. B. kunde.standort.geraet@customer.ravenkeep.cloud.',
     'invalid_device' => 'Unbekanntes Gerät.',
     'invalid_device_has_login' => 'Das Gerät hat schon einen Zugang.',
+    'addressTags' => 'Adresse = Gerät',
+    'addressTagsOn' => 'ja',
+    'addressTagsOff' => 'nein',
+    'addressTagsHint' => 'Bei „ja“ ergibt die Empfängeradresse automatisch Tags (E-016): gerät_kunde, gerät_standort_kunde oder gerät_typ_standort_kunde; Punkte trennen Unterebenen, z. B. gc.pm2610_proxmox_2og.hb_atc. Feste Regeln gehen vor.',
 ];

@@ -11,7 +11,7 @@ use InvalidArgumentException;
  * Customers, locations and devices with their automatic tags:
  *   customer  -> kunde:<customer>
  *   location  -> standort:<customer>.<location>
- *   device    -> geraet:<path>   (path = customer[.location].device)
+ *   device    -> geraet:<path>   (path = customer.device, E-016)
  * plus the tags assigned to a device. Messages from a device's SMTP login get all of them.
  *
  * Codes are fixed after creation (they are part of tags and SMTP user names). Every change that
@@ -109,15 +109,12 @@ class Inventory
     {
         $customer = $this->customer($customerId);
         $code     = self::normalizeCode($code);
-        $path     = $customer['code'];
-        if ($locationId !== null) {
-            $location = $this->db->table('locations')->where(['id' => $locationId, 'customer_id' => $customerId])->get()->getRowArray();
-            if ($location === null) {
-                throw new InvalidArgumentException('location');
-            }
-            $path .= '.' . $location['code'];
+        // identity = customer + device code (E-016): moving the device keeps its path and history
+        $path = $customer['code'] . '.' . $code;
+        if ($locationId !== null
+            && $this->db->table('locations')->where(['id' => $locationId, 'customer_id' => $customerId])->countAllResults() === 0) {
+            throw new InvalidArgumentException('location');
         }
-        $path .= '.' . $code;
         if ($this->db->table('devices')->where('path', $path)->countAllResults() > 0) {
             throw new InvalidArgumentException('code_exists');
         }
@@ -224,6 +221,22 @@ class Inventory
         }
 
         return $names;
+    }
+
+    /**
+     * Tags per device path ("customer.device"), used for devices recognised by their address (E-016).
+     *
+     * @return array<string, list<string>>
+     */
+    public function tagsByPath(): array
+    {
+        $paths  = array_column($this->db->table('devices')->select('id, path')->get()->getResultArray(), 'path', 'id');
+        $result = [];
+        foreach ($this->deviceTagMap() as $id => $tags) {
+            $result[$paths[$id]] = $tags;
+        }
+
+        return $result;
     }
 
     /**

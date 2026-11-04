@@ -30,6 +30,7 @@ $routes->post('devices/(:num)/delete', 'Devices::delete/$1');
 $routes->get('settings', 'Settings::index');
 $routes->post('settings/domains', 'Settings::addDomain');
 $routes->post('settings/domains/(:num)/delete', 'Settings::deleteDomain/$1');
+$routes->post('settings/domains/(:num)/address', 'Settings::toggleAddressTags/$1');
 $routes->post('settings/networks', 'Settings::addNetwork');
 $routes->post('settings/networks/(:num)/delete', 'Settings::deleteNetwork/$1');
 $routes->get('auth/login', 'Auth::login');

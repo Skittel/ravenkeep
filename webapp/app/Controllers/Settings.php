@@ -38,6 +38,19 @@ class Settings extends BaseController
         return $this->change(static fn (NodeSettings $s) => $s->deleteDomain($id));
     }
 
+    /** Recipient addresses of this domain carry customer, location, type and device (E-016). */
+    public function toggleAddressTags(int $id): RedirectResponse
+    {
+        $db  = db_connect();
+        $row = $db->table('local_domains')->where('id', $id)->get()->getRowArray();
+        if ($row !== null) {
+            $db->table('local_domains')->where('id', $id)->update(['parse_address' => $row['parse_address'] ? 0 : 1]);
+            (new \App\Libraries\Rules\RuleRunner($db))->bumpVersion(); // re-evaluate stored messages
+        }
+
+        return redirect()->to(site_url('settings'))->with('success', lang('Customers.saved'));
+    }
+
     public function addNetwork(): RedirectResponse
     {
         return $this->change(fn (NodeSettings $s) => $s->addNetwork((string) $this->request->getPost('network'), trim((string) $this->request->getPost('note')) ?: null));

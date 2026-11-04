@@ -39,16 +39,19 @@ $del = static fn (string $url, string $confirm): string => form_open($url, ['cla
     <section class="card">
         <h1><?= lang('Devices.domainsTitle') ?></h1>
         <p class="hint"><?= lang('Devices.domainsHint') ?></p>
+        <p class="hint"><?= lang('Devices.addressTagsHint') ?></p>
         <?= form_open('settings/domains', ['class' => 'rule-form']) ?>
             <label><?= lang('Senders.domain') ?><input type="text" name="domain" required maxlength="253" placeholder="customer.example.org"></label>
             <label><?= lang('Senders.note') ?><input type="text" name="note" maxlength="255"></label>
             <button type="submit" class="button button-primary"><?= lang('Devices.add') ?></button>
         <?= form_close() ?>
         <table class="grid">
-            <thead><tr><th><?= lang('Senders.domain') ?></th><th><?= lang('Senders.note') ?></th><th><?= lang('Senders.created') ?></th><th></th></tr></thead>
+            <thead><tr><th><?= lang('Senders.domain') ?></th><th><?= lang('Devices.addressTags') ?></th><th><?= lang('Senders.note') ?></th><th><?= lang('Senders.created') ?></th><th></th></tr></thead>
             <tbody>
             <?php foreach ($domains as $d): ?>
-                <tr><td><code><?= esc($d['domain']) ?></code></td><td><?= esc($d['note'] ?? '') ?></td><td><?= esc(rk_time($d['created_at'], 'd.m.Y H:i')) ?></td>
+                <tr><td><code><?= esc($d['domain']) ?></code></td>
+                    <td><?= form_open('settings/domains/' . $d['id'] . '/address', ['class' => 'inline']) ?><button type="submit" class="button" title="<?= esc(lang('Devices.addressTagsHint'), 'attr') ?>"><?= $d['parse_address'] ? '☑ ' . lang('Devices.addressTagsOn') : '☐ ' . lang('Devices.addressTagsOff') ?></button><?= form_close() ?></td>
+                    <td><?= esc($d['note'] ?? '') ?></td><td><?= esc(rk_time($d['created_at'], 'd.m.Y H:i')) ?></td>
                     <td><?= $del('settings/domains/' . $d['id'] . '/delete', lang('Devices.confirmDeleteDomain')) ?></td></tr>
             <?php endforeach ?>
             </tbody>

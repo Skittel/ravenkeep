@@ -69,4 +69,6 @@ return [
     'op_wildcard'      => 'matches pattern',
     'op_has'           => 'is present',
     'op_has_not'       => 'is missing',
+    'fromDevice' => 'automatically from the device',
+    'fromAddress' => 'automatically from the recipient address',
 ];

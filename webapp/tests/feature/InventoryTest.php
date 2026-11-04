@@ -57,8 +57,8 @@ final class InventoryTest extends CIUnitTestCase
     {
         $id = $this->inventory->createDevice($this->customer, $this->location, 'NAS05', 'NAS05', null, ['typ:nas', 'QNAP', 'qnap']);
 
-        $this->seeInDatabase('devices', ['id' => $id, 'path' => 'acme.branch2.nas05']);
-        $this->assertSame(['kunde:acme', 'standort:acme.branch2', 'geraet:acme.branch2.nas05', 'qnap', 'typ:nas'], $this->inventory->deviceTags($id));
+        $this->seeInDatabase('devices', ['id' => $id, 'path' => 'acme.nas05']);
+        $this->assertSame(['kunde:acme', 'standort:acme.branch2', 'geraet:acme.nas05', 'qnap', 'typ:nas'], $this->inventory->deviceTags($id));
 
         $noLocation = $this->inventory->createDevice($this->customer, null, 'pbs', 'PBS', null, []);
         $this->assertSame(['kunde:acme', 'geraet:acme.pbs'], $this->inventory->deviceTags($noLocation));
@@ -87,7 +87,7 @@ final class InventoryTest extends CIUnitTestCase
     {
         $device = $this->inventory->createDevice($this->customer, $this->location, 'nas05', 'NAS05', null, ['typ:nas']);
         [, , $username] = (new NodeSettings($this->db))->createIdentityForDevice($device, 'customer.example.org', null);
-        $this->assertSame('acme.branch2.nas05@customer.example.org', $username);
+        $this->assertSame('acme.nas05@customer.example.org', $username);
 
         $this->expectExceptionMessage('device_has_login');
         (new NodeSettings($this->db))->createIdentityForDevice($device, 'customer.example.org', null);
@@ -102,12 +102,12 @@ final class InventoryTest extends CIUnitTestCase
             ['field' => 'subject', 'operator' => 'contains', 'value' => '[error]'],
         ], ['status:error']);
 
-        $error = $this->addMessage('a', ['sasl_username' => 'ACME.branch2.nas05@customer.example.org', 'subject' => '[Error] RAID degraded']);
-        $info  = $this->addMessage('b', ['sasl_username' => 'acme.branch2.nas05@customer.example.org', 'subject' => '[Info] ok']);
+        $error = $this->addMessage('a', ['sasl_username' => 'ACME.nas05@customer.example.org', 'subject' => '[Error] RAID degraded']);
+        $info  = $this->addMessage('b', ['sasl_username' => 'acme.nas05@customer.example.org', 'subject' => '[Info] ok']);
         $other = $this->addMessage('c', ['sasl_username' => 'unknown@customer.example.org', 'subject' => '[Error] x']);
         $this->runner->processBatch();
 
-        $this->assertSame(['geraet:acme.branch2.nas05' => 'device', 'kunde:acme' => 'device', 'standort:acme.branch2' => 'device',
+        $this->assertSame(['geraet:acme.nas05' => 'device', 'kunde:acme' => 'device', 'standort:acme.branch2' => 'device',
             'status:error' => 'rule', 'typ:nas' => 'device'], $this->tagsOf($error));
         $this->assertArrayNotHasKey('status:error', $this->tagsOf($info));
         $this->assertSame([], $this->tagsOf($other));
@@ -117,6 +117,44 @@ final class InventoryTest extends CIUnitTestCase
         $this->runner->processBatch();
         $this->assertArrayNotHasKey('status:error', $this->tagsOf($error));
         $this->assertArrayHasKey('typ:storage', $this->tagsOf($error));
+    }
+
+    public function testAddressTagsForAcceptedMessagesOfMarkedDomains(): void
+    {
+        $this->db->table('local_domains')->insert(['domain' => 'report.example.org', 'parse_address' => 1]);
+        $this->inventory->createDevice($this->customer, $this->location, 'pm2610', 'PM2610', null, ['hersteller:dell']);
+
+        $known   = $this->addMessage('a', ['mode' => 'mx', 'envelope_recipient' => 'gc.pm2610_proxmox_2og.branch2_acme@report.example.org']);
+        $unknown = $this->addMessage('b', ['mode' => 'mx', 'envelope_recipient' => 'nas09_other@report.example.org']);
+        $pending = $this->addMessage('c', ['mode' => 'mx', 'status' => 'pending', 'envelope_recipient' => 'nas09_other@report.example.org']);
+        $plain   = $this->addMessage('d', ['mode' => 'mx', 'envelope_recipient' => 'nas09_other@customer.example.org']);
+        $this->runner->processBatch();
+
+        // known device: its own tags (source device) plus the remaining address tags
+        $this->assertSame([
+            'geraet:acme.pm2610' => 'device', 'hersteller:dell' => 'device', 'kunde:acme' => 'device', 'meldung:gc' => 'address',
+            'standort:acme.branch2' => 'device', 'standort:acme.branch2.2og' => 'address', 'typ:proxmox' => 'address',
+        ], $this->tagsOf($known));
+        // unknown device: new tags are created from the address
+        $this->assertSame(['geraet:other.nas09' => 'address', 'kunde:other' => 'address'], $this->tagsOf($unknown));
+        $this->seeInDatabase('tags', ['name' => 'kunde:other']);
+        // only accepted messages (E-002), only marked domains
+        $this->assertSame([], $this->tagsOf($pending));
+        $this->assertSame([], $this->tagsOf($plain));
+    }
+
+    public function testFixedRulesWinOverAutomaticTagsOfTheSameType(): void
+    {
+        $this->db->table('local_domains')->insert(['domain' => 'report.example.org', 'parse_address' => 1]);
+        (new RuleRepository($this->db, $this->runner))->save(null, 'Mailhardener belongs to skit', 'all', false, true, [
+            ['field' => 'header_from', 'operator' => 'ends_with', 'value' => '@mailhardener.example'],
+        ], ['kunde:skit']);
+
+        $id = $this->addMessage('a', ['mode' => 'mx', 'header_from_address' => 'alerts@mailhardener.example',
+            'envelope_recipient' => 'mh_hb_acme@report.example.org']);
+        $this->runner->processBatch();
+
+        $this->assertSame(['geraet:acme.mh' => 'address', 'kunde:skit' => 'rule', 'standort:acme.hb' => 'address'], $this->tagsOf($id));
     }
 
     public function testMonitoringMarksOverdueDevices(): void
