@@ -89,6 +89,19 @@ final class InventoryPagesTest extends CIUnitTestCase
         $this->seeInDatabase('locations', ['id' => $location, 'name' => 'Branch Two', 'note' => 'Hall B', 'code' => 'branch2']);
     }
 
+    public function testTagRenameFormOpensAndRenames(): void
+    {
+        $tag  = (int) $this->db->table('tags')->where('name', 'typ:nas')->get()->getRow()->id;
+        $form = $this->as('rw')->get('tags?edit=' . $tag);
+        $form->assertOK();
+        $form->assertSee('name="name" value="typ:nas"'); // edit field is shown (failed before 0.3.5: string vs int id)
+
+        $security = config('Security');
+        preg_match('/name="' . $security->tokenName . '" value="([^"]+)"/', $form->getBody(), $m);
+        $this->as('rw')->post('tags/' . $tag, [$security->tokenName => $m[1], 'name' => 'typ:storage'])->assertRedirectTo(site_url('tags'));
+        $this->seeInDatabase('tags', ['id' => $tag, 'name' => 'typ:storage']);
+    }
+
     public function testReadOnlyCannotChangeInventory(): void
     {
         $this->as('ro')->post('customers', ['code' => 'x', 'name' => 'X'])->assertStatus(403);

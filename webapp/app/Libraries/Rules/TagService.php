@@ -31,11 +31,12 @@ class TagService
             FROM tags t ORDER BY t.name')->getResultArray();
         $ruleUse = $this->ruleUsage();
         foreach ($tags as &$tag) {
+            $tag['id']       = (int) $tag['id']; // MySQLi returns strings; the view compares strictly
             $tag['type']     = TagName::type($tag['name']);
             $tag['reserved'] = in_array($tag['type'], Inventory::RESERVED_TAG_TYPES, true);
             $tag['messages'] = (int) $tag['messages'];
             $tag['devices']  = (int) $tag['devices'];
-            $tag['rules']    = $ruleUse[$tag['name']] ?? 0;
+            $tag['rules']    = (int) ($ruleUse[$tag['name']] ?? 0);
         }
 
         return $tags;
