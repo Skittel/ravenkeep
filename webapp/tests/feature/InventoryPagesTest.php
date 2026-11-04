@@ -128,6 +128,23 @@ final class InventoryPagesTest extends CIUnitTestCase
         }
     }
 
+    public function testTagsPageFiltersByTypeAndSearch(): void
+    {
+        $byType = $this->as('ro')->get('tags?type=kunde');
+        $byType->assertSee('kunde - acme');
+        $byType->assertDontSee('typ - nas');
+
+        $search = $this->as('ro')->get('tags?q=nas');
+        $search->assertSee('typ - nas');
+        $search->assertSee('geraet - acme.nas05');
+        $search->assertDontSee('kunde - acme');
+
+        $untyped = $this->as('ro')->get('tags?type=-');
+        $untyped->assertSee('>qnap<');
+        $untyped->assertDontSee('typ - nas');
+        $this->dump('tags-filter', $search->getBody());
+    }
+
     public function testReadOnlyCannotChangeInventory(): void
     {
         $this->as('ro')->post('customers', ['code' => 'x', 'name' => 'X'])->assertStatus(403);

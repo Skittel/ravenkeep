@@ -71,4 +71,5 @@ return [
     'op_has_not'       => 'is missing',
     'fromDevice' => 'automatically from the device',
     'fromAddress' => 'automatically from the recipient address',
+    'tags' => 'Tags',
 ];

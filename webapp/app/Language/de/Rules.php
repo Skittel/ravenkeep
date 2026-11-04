@@ -71,4 +71,5 @@ return [
     'op_has_not'       => 'fehlt',
     'fromDevice' => 'automatisch vom Gerät',
     'fromAddress' => 'automatisch aus der Empfängeradresse',
+    'tags' => 'Tags',
 ];

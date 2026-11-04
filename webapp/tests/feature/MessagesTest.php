@@ -78,6 +78,20 @@ final class MessagesTest extends CIUnitTestCase
         $result->assertSee('plain body');
     }
 
+    public function testReadingPaneShowsSummaryAndTabs(): void
+    {
+        $this->db->table('messages')->where('id', $this->acceptedId)->update(['header_from' => 'Monitor <alert@monitor.example>', 'header_to' => 'x@customer.ravenkeep.cloud']);
+        $result = $this->get('/?id=' . $this->acceptedId);
+        $result->assertOK();
+        foreach (['Monitor &lt;alert@monitor.example&gt;', 'data-tab="details"', 'data-tab="rules"', 'data-tab="headers"'] as $text) {
+            $result->assertSee($text);
+        }
+        if (getenv('RK_DUMP_PAGES')) {
+            file_put_contents(getenv('RK_DUMP_PAGES') . '/mail.html', $result->getBody());
+            file_put_contents(getenv('RK_DUMP_PAGES') . '/dashboard.html', $this->get('dashboard')->getBody());
+        }
+    }
+
     public function testHtmlViewIsSandboxed(): void
     {
         $result = $this->get("messages/{$this->acceptedId}/html");

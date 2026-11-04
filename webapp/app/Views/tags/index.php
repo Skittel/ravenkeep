@@ -2,6 +2,10 @@
 /**
  * @var list<array> $tags
  * @var int $edit
+ * @var int $total
+ * @var list<string> $types
+ * @var string $type
+ * @var string $q
  */
 $this->setData(['active' => 'tags', 'title' => lang('Customers.navTags')]);
 $post = static fn (string $url, string $label, ?string $confirm = null): string => form_open($url, array_filter(['class' => 'inline', 'data-confirm' => $confirm]))
@@ -17,6 +21,18 @@ $post = static fn (string $url, string $label, ?string $confirm = null): string 
             <label><?= lang('Customers.tag') ?><input type="text" name="name" required maxlength="64" placeholder="typ:nas, hersteller:qnap, wichtig"></label>
             <button type="submit" class="button button-primary"><?= lang('Customers.createTag') ?></button>
         <?= form_close() ?>
+        <form class="tag-filter" method="get" action="<?= site_url('tags') ?>">
+            <input type="search" name="q" value="<?= esc($q, 'attr') ?>" placeholder="<?= esc(lang('Customers.tagSearch'), 'attr') ?>" autocomplete="off">
+            <select name="type" data-autosubmit>
+                <option value=""><?= lang('Customers.allTypes') ?></option>
+                <?php foreach ($types as $tp): ?>
+                    <option value="<?= esc($tp === '' ? '-' : $tp, 'attr') ?>" <?= $type === ($tp === '' ? '-' : $tp) ? 'selected' : '' ?>><?= esc($tp === '' ? lang('Customers.noType') : $tp) ?></option>
+                <?php endforeach ?>
+            </select>
+            <button type="submit" class="button"><?= lang('Customers.filter') ?></button>
+            <?php if ($q !== '' || $type !== ''): ?><a class="button" href="<?= site_url('tags') ?>"><?= lang('Customers.resetFilter') ?></a><?php endif ?>
+            <span class="muted"><?= lang('Customers.tagCount', [count($tags), $total]) ?></span>
+        </form>
         <table class="grid">
             <thead><tr><th><?= lang('Customers.tag') ?></th><th class="num"><?= lang('Senders.messages') ?></th><th class="num"><?= lang('Customers.devices') ?></th>
                 <th class="num"><?= lang('Rules.title') ?></th><th></th></tr></thead>

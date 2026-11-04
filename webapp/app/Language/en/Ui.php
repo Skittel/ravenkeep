@@ -58,4 +58,9 @@ return [
     'attachments'    => 'Attachments',
     'noBody'         => '(no text content)',
     'htmlHint'       => 'HTML is shown isolated: no scripts, no external content.',
+    'dateReceived' => 'Date',
+    'viewDetails' => 'Details',
+    'viewRules' => 'Rules',
+    'appliedRules' => 'Applied rules',
+    'noRuleMatched' => 'No rule assigned a tag to this message.',
 ];

@@ -8,6 +8,11 @@
         if (msg && !window.confirm(msg)) e.preventDefault();
     });
 
+    // Filters: submit the form when a select with data-autosubmit changes
+    document.querySelectorAll('select[data-autosubmit]').forEach(function (sel) {
+        sel.addEventListener('change', function () { sel.form.submit(); });
+    });
+
     // Tag picker: inputs with data-tag-picker get a searchable list of the known tags (#rk-tags).
     //   multi  = comma-separated list shown as chips (the original input keeps the value for the form)
     //   single = one tag (rule conditions on tags); only active while the row's field is "tag"

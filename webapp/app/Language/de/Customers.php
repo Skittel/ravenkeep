@@ -82,4 +82,10 @@ return [
     'invalid_hours'         => 'Stunden zwischen 1 und 8760.',
     'invalid_profile'       => 'Unbekanntes Timeout-Profil.',
     'invalid_profile_exists' => 'Dieses Profil gibt es schon.',
+    'tagSearch' => 'Tag suchen …',
+    'allTypes' => 'Alle Typen',
+    'noType' => '(ohne Typ)',
+    'filter' => 'Filtern',
+    'resetFilter' => 'Zurücksetzen',
+    'tagCount' => '{0} von {1} Tags',
 ];

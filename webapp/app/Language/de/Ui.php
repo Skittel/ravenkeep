@@ -58,4 +58,9 @@ return [
     'attachments'    => 'Anhänge',
     'noBody'         => '(kein Textinhalt)',
     'htmlHint'       => 'HTML wird abgeschottet angezeigt: keine Skripte, keine externen Inhalte.',
+    'dateReceived' => 'Datum',
+    'viewDetails' => 'Details',
+    'viewRules' => 'Regeln',
+    'appliedRules' => 'Angewendete Regeln',
+    'noRuleMatched' => 'Keine Regel hat für diese Mail einen Tag vergeben.',
 ];

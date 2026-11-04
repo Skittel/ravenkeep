@@ -48,17 +48,50 @@ $html = $reader?->htmlBody();
         <a class="button" href="<?= site_url('messages/' . $m['id'] . '/eml') ?>"><?= lang('Ui.downloadEml') ?></a>
     </header>
 
-    <div class="message-tags">
-        <?php foreach ($tags as $tg): ?>
-            <span class="<?= rk_tag_class($tg['name']) ?>" title="<?= esc(match ($tg['source']) { 'manual' => lang('Rules.manual'), 'device' => lang('Rules.fromDevice'), 'address' => lang('Rules.fromAddress'), default => lang('Rules.byRule', [$tg['rule_name'] ?? '?']) }, 'attr') ?>"><?= esc(rk_tag_label($tg['name'])) ?><?php if ($tg['source'] === 'manual'): ?><?= form_open('messages/' . $m['id'] . '/tags/' . $tg['id'] . '/delete', ['class' => 'inline tag-remove']) ?><button type="submit" title="<?= esc(lang('Rules.removeTag'), 'attr') ?>">×</button><?= form_close() ?><?php endif ?></span>
-        <?php endforeach ?>
-        <?= form_open('messages/' . $m['id'] . '/tags', ['class' => 'inline tag-add']) ?>
-            <input type="text" name="tag" maxlength="64" placeholder="<?= esc(lang('Rules.addTag'), 'attr') ?>" required>
-        <?= form_close() ?>
-        <?php if ($m['status'] !== 'accepted'): ?><span class="hint"><?= lang('Rules.onlyAccepted') ?></span><?php endif ?>
-    </div>
+    <table class="kv message-summary">
+        <?= $row(lang('Ui.from'), $m['header_from'] ?: $m['envelope_sender']) ?>
+        <?= $row(lang('Ui.to'), $m['header_to'] ?: $m['envelope_recipient']) ?>
+        <?= $row(lang('Ui.dateReceived'), rk_time($m['received_at'])) ?>
+        <tr><th><?= lang('Rules.tags') ?></th><td>
+            <div class="message-tags">
+                <?php foreach ($tags as $tg): ?>
+                    <span class="<?= rk_tag_class($tg['name']) ?>" title="<?= esc(match ($tg['source']) { 'manual' => lang('Rules.manual'), 'device' => lang('Rules.fromDevice'), 'address' => lang('Rules.fromAddress'), default => lang('Rules.byRule', [$tg['rule_name'] ?? '?']) }, 'attr') ?>"><?= esc(rk_tag_label($tg['name'])) ?><?php if ($tg['source'] === 'manual'): ?><?= form_open('messages/' . $m['id'] . '/tags/' . $tg['id'] . '/delete', ['class' => 'inline tag-remove']) ?><button type="submit" title="<?= esc(lang('Rules.removeTag'), 'attr') ?>">×</button><?= form_close() ?><?php endif ?></span>
+                <?php endforeach ?>
+                <?= form_open('messages/' . $m['id'] . '/tags', ['class' => 'inline tag-add']) ?>
+                    <input type="text" name="tag" maxlength="64" placeholder="<?= esc(lang('Rules.addTag'), 'attr') ?>" required>
+                <?= form_close() ?>
+                <?php if ($m['status'] !== 'accepted'): ?><span class="hint"><?= lang('Rules.onlyAccepted') ?></span><?php endif ?>
+            </div>
+        </td></tr>
+    </table>
 
-    <div class="facts">
+    <section class="body">
+        <?php if ($error !== null): ?>
+            <p class="error"><?= esc($error) ?></p>
+        <?php else: ?>
+            <div class="tabs" role="tablist">
+                <button type="button" data-tab="text" class="<?= $text !== null || $html === null ? 'active' : '' ?>"><?= lang('Ui.viewText') ?></button>
+                <?php if ($html !== null): ?>
+                    <button type="button" data-tab="html" class="<?= $text === null ? 'active' : '' ?>"><?= lang('Ui.viewHtml') ?></button>
+                <?php endif ?>
+                <button type="button" data-tab="headers"><?= lang('Ui.viewHeaders') ?></button>
+                <button type="button" data-tab="details"><?= lang('Ui.viewDetails') ?></button>
+                <button type="button" data-tab="rules"><?= lang('Ui.viewRules') ?></button>
+            </div>
+            <div class="tab" data-tab="text" <?= $text !== null || $html === null ? '' : 'hidden' ?>>
+                <pre class="text"><?= esc($text ?? lang('Ui.noBody')) ?></pre>
+            </div>
+            <?php if ($html !== null): ?>
+                <div class="tab" data-tab="html" <?= $text === null ? '' : 'hidden' ?>>
+                    <p class="hint"><?= lang('Ui.htmlHint') ?></p>
+                    <iframe sandbox="" referrerpolicy="no-referrer" data-src="<?= site_url('messages/' . $m['id'] . '/html') ?>" title="HTML"></iframe>
+                </div>
+            <?php endif ?>
+            <div class="tab" data-tab="headers" hidden>
+                <pre class="headers"><?= esc($reader->rawHeaders()) ?></pre>
+            </div>
+            <div class="tab" data-tab="details" hidden>
+                <div class="facts">
         <table class="kv">
             <?= $row(lang('Ui.received'), rk_time($m['received_at'])) ?>
             <?= $row(lang('Ui.headerFrom'), $m['header_from']) ?>
@@ -78,9 +111,8 @@ $html = $reader?->htmlBody();
             <?= $row(lang('Ui.clientHelo'), $m['client_helo']) ?>
             <?= $row(lang('Ui.node'), $node) ?>
         </table>
-    </div>
-
-    <section class="checks">
+                </div>
+                <section class="checks">
         <h2><?= lang('Ui.checks') ?></h2>
         <?php if ($m['mode'] === 'auth'): ?>
             <p><?= lang('Ui.notChecked') ?></p>
@@ -109,6 +141,23 @@ $html = $reader?->htmlBody();
                     <?php foreach ($reasons as $reason): ?><li><?= esc($reason) ?></li><?php endforeach ?>
                 </ul>
             <?php endif ?>
+        <?php endif ?>
+                </section>
+            </div>
+            <div class="tab" data-tab="rules" hidden>
+                <h2><?= lang('Ui.appliedRules') ?></h2>
+                <?php $byRule = array_filter($tags, static fn ($t) => $t['source'] === 'rule'); ?>
+                <?php if ($byRule === []): ?>
+                    <p class="muted"><?= lang('Ui.noRuleMatched') ?></p>
+                <?php else: ?>
+                    <table class="kv">
+                        <?php foreach ($byRule as $tg): ?>
+                            <tr><th><span class="<?= rk_tag_class($tg['name']) ?>"><?= esc(rk_tag_label($tg['name'])) ?></span></th>
+                                <td><?php if (! empty($tg['rule_id'])): ?><a href="<?= site_url('rules/' . $tg['rule_id']) ?>"><?= esc($tg['rule_name'] ?? '?') ?></a><?php else: ?><?= esc($tg['rule_name'] ?? '?') ?><?php endif ?></td></tr>
+                        <?php endforeach ?>
+                    </table>
+                <?php endif ?>
+                <?php if ($m['mode'] !== 'auth'): ?>
             <h2><?= lang('Senders.quickTitle') ?></h2>
             <table class="kv quick">
                 <?= $quick((string) $m['envelope_sender'], 'envelope', (int) $m['id']) ?>
@@ -116,31 +165,7 @@ $html = $reader?->htmlBody();
                     <?= $quick((string) $m['header_from_address'], 'header', (int) $m['id']) ?>
                 <?php endif ?>
             </table>
-        <?php endif ?>
-    </section>
-
-    <section class="body">
-        <?php if ($error !== null): ?>
-            <p class="error"><?= esc($error) ?></p>
-        <?php else: ?>
-            <div class="tabs" role="tablist">
-                <button type="button" data-tab="text" class="<?= $text !== null || $html === null ? 'active' : '' ?>"><?= lang('Ui.viewText') ?></button>
-                <?php if ($html !== null): ?>
-                    <button type="button" data-tab="html" class="<?= $text === null ? 'active' : '' ?>"><?= lang('Ui.viewHtml') ?></button>
                 <?php endif ?>
-                <button type="button" data-tab="headers"><?= lang('Ui.viewHeaders') ?></button>
-            </div>
-            <div class="tab" data-tab="text" <?= $text !== null || $html === null ? '' : 'hidden' ?>>
-                <pre class="text"><?= esc($text ?? lang('Ui.noBody')) ?></pre>
-            </div>
-            <?php if ($html !== null): ?>
-                <div class="tab" data-tab="html" <?= $text === null ? '' : 'hidden' ?>>
-                    <p class="hint"><?= lang('Ui.htmlHint') ?></p>
-                    <iframe sandbox="" referrerpolicy="no-referrer" data-src="<?= site_url('messages/' . $m['id'] . '/html') ?>" title="HTML"></iframe>
-                </div>
-            <?php endif ?>
-            <div class="tab" data-tab="headers" hidden>
-                <pre class="headers"><?= esc($reader->rawHeaders()) ?></pre>
             </div>
             <?php $attachments = $reader->attachments(); ?>
             <?php if ($attachments !== []): ?>

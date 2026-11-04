@@ -23,7 +23,16 @@ class Tags extends BaseController
 
     public function index(): string
     {
-        return view('tags/index', ['tags' => $this->service()->all(), 'edit' => (int) $this->request->getGet('edit')]);
+        $all   = $this->service()->all();
+        $type  = (string) $this->request->getGet('type');
+        $query = mb_strtolower(trim((string) $this->request->getGet('q')));
+        $types = array_values(array_unique(array_column($all, 'type')));
+        sort($types, SORT_STRING);
+        $tags = array_values(array_filter($all, static fn (array $t): bool => ($type === '' || ($type === '-' ? $t['type'] === '' : $t['type'] === $type))
+            && ($query === '' || str_contains($t['name'], $query) || str_contains(mb_strtolower(rk_tag_label($t['name'])), $query))));
+
+        return view('tags/index', ['tags' => $tags, 'total' => count($all), 'types' => $types, 'type' => $type, 'q' => $query,
+            'edit' => (int) $this->request->getGet('edit')]);
     }
 
     public function create(): RedirectResponse
