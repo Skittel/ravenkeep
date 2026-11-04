@@ -8,6 +8,7 @@
  * @var list<array> $profiles
  * @var list<string> $tagNames
  * @var int $edit device id in edit mode
+ * @var int $editLocation location id in edit mode
  */
 $this->setData(['active' => 'customers', 'title' => $customer['name']]);
 $cid  = (int) $customer['id'];
@@ -30,7 +31,7 @@ $autoTag = static fn (string $t) => in_array(explode(':', $t, 2)[0], ['kunde', '
     <section class="card">
         <div class="card-head">
             <h1><a href="<?= site_url('customers') ?>"><?= lang('Customers.title') ?></a> › <?= esc($customer['name']) ?></h1>
-            <span class="<?= rk_tag_class('kunde:x') ?>">kunde:<?= esc($customer['code']) ?></span>
+            <span class="<?= rk_tag_class('kunde:x') ?>"><?= esc(rk_tag_label('kunde:' . $customer['code'])) ?></span>
         </div>
         <?= form_open('customers/' . $cid, ['class' => 'rule-form']) ?>
             <label><?= lang('Customers.name') ?><input type="text" name="name" required maxlength="128" value="<?= esc($customer['name'], 'attr') ?>"></label>
@@ -56,12 +57,27 @@ $autoTag = static fn (string $t) => in_array(explode(':', $t, 2)[0], ['kunde', '
                 <tbody>
                 <?php foreach ($locations as $l): ?>
                     <?php $count = count(array_filter($devices, static fn ($d) => (int) $d['location_id'] === (int) $l['id'])); ?>
+                    <?php if ($editLocation === (int) $l['id']): ?>
+                        <tr class="editing"><td colspan="5">
+                            <?= form_open('customers/' . $cid . '/locations/' . $l['id'], ['class' => 'rule-form']) ?>
+                                <label><?= lang('Customers.name') ?><input type="text" name="name" required maxlength="128" value="<?= esc($l['name'], 'attr') ?>"></label>
+                                <label><?= lang('Customers.code') ?><input type="text" value="<?= esc($l['code'], 'attr') ?>" disabled class="code-input" title="<?= esc(lang('Customers.codeFixed'), 'attr') ?>"></label>
+                                <label><?= lang('Senders.note') ?><input type="text" name="note" maxlength="255" value="<?= esc($l['note'] ?? '', 'attr') ?>"></label>
+                                <button type="submit" class="button button-primary"><?= lang('Rules.save') ?></button>
+                                <a class="button" href="<?= site_url('customers/' . $cid) ?>"><?= lang('Rules.cancel') ?></a>
+                            <?= form_close() ?>
+                        </td></tr>
+                        <?php continue ?>
+                    <?php endif ?>
                     <tr>
                         <td><?= esc($l['name']) ?></td>
-                        <td><span class="<?= rk_tag_class('standort:x') ?>">standort:<?= esc($customer['code'] . '.' . $l['code']) ?></span></td>
+                        <td><span class="<?= rk_tag_class('standort:x') ?>"><?= esc(rk_tag_label('standort:' . $customer['code'] . '.' . $l['code'])) ?></span></td>
                         <td class="num"><?= $count ?></td>
                         <td><?= esc($l['note'] ?? '') ?></td>
-                        <td><?= $count === 0 ? $post('customers/' . $cid . '/locations/' . $l['id'] . '/delete', lang('Senders.delete'), lang('Customers.confirmDeleteLocation')) : '' ?></td>
+                        <td class="actions">
+                            <a class="button write-only" href="<?= site_url('customers/' . $cid) ?>?edit_location=<?= (int) $l['id'] ?>"><?= lang('Customers.edit') ?></a>
+                            <?= $count === 0 ? $post('customers/' . $cid . '/locations/' . $l['id'] . '/delete', lang('Senders.delete'), lang('Customers.confirmDeleteLocation')) : '' ?>
+                        </td>
                     </tr>
                 <?php endforeach ?>
                 </tbody>
@@ -102,7 +118,7 @@ $autoTag = static fn (string $t) => in_array(explode(':', $t, 2)[0], ['kunde', '
                         <tr class="<?= $mon && $mon['overdue'] ? 'overdue' : '' ?>">
                             <td><strong><?= esc($d['name']) ?></strong><br><code class="muted"><?= esc($d['path']) ?></code><?php if ($d['note']): ?><br><span class="muted"><?= esc($d['note']) ?></span><?php endif ?></td>
                             <td><?= esc($d['location_name'] ?? '–') ?></td>
-                            <td><?php foreach ($tags[$id] ?? [] as $t): ?><a class="<?= rk_tag_class($t) ?>" href="<?= site_url('/') ?>?tag%5B0%5D=<?= urlencode($t) ?>"><?= esc($t) ?></a><?php endforeach ?></td>
+                            <td><?php foreach ($tags[$id] ?? [] as $t): ?><a class="<?= rk_tag_class($t) ?>" href="<?= site_url('/') ?>?tag%5B0%5D=<?= urlencode($t) ?>"><?= esc(rk_tag_label($t)) ?></a><?php endforeach ?></td>
                             <td><?php if ($mon): ?>
                                     <span class="badge badge-<?= $mon['overdue'] ? 'rejected' : 'accepted' ?>"><?= $mon['overdue'] ? lang('Customers.overdue') : lang('Customers.ok') ?></span>
                                     <br><span class="muted"><?= esc($d['profile_name']) ?> · <?= lang('Customers.lastSeen') ?>: <?= $mon['last_seen'] ? esc(rk_time($mon['last_seen'], 'd.m. H:i')) : lang('Devices.never') ?></span>

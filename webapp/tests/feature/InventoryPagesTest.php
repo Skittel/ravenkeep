@@ -60,14 +60,33 @@ final class InventoryPagesTest extends CIUnitTestCase
     {
         $result = $this->as('rw')->get('customers/' . $this->customer);
         $result->assertOK();
-        foreach (['kunde:acme', 'standort:acme.branch2', 'geraet:acme.branch2.nas05', 'typ:nas', 'qnap', 'Daily'] as $text) {
+        foreach (['kunde - acme', 'standort - acme.branch2', 'geraet - acme.branch2.nas05', 'typ - nas', 'qnap', 'Daily'] as $text) {
             $result->assertSee($text);
         }
+        $result->assertDontSee('>typ:nas<'); // tags are displayed with " - " instead of ":"
         $this->dump('customer', $result->getBody());
         $this->dump('customers', $this->as('rw')->get('customers')->getBody());
         $this->dump('tags', $this->as('rw')->get('tags')->getBody());
         $this->dump('settings', $this->as('rw')->get('settings')->getBody());
         $this->dump('devices', $this->as('rw')->get('devices')->getBody());
+    }
+
+    public function testLocationCanBeEditedButKeepsItsCode(): void
+    {
+        $location = (int) $this->db->table('locations')->get()->getRow()->id;
+        $form     = $this->as('rw')->get('customers/' . $this->customer . '?edit_location=' . $location);
+        $form->assertOK();
+        $form->assertSee('value="Branch 2"');
+        $this->dump('customer-edit-location', $form->getBody());
+
+        // CSRF: use the token of the rendered form (the security service is shared within the test)
+        $security = config('Security');
+        preg_match('/name="' . $security->tokenName . '" value="([^"]+)"/', $form->getBody(), $m);
+        $hash = $m[1];
+        $this->as('rw')->post('customers/' . $this->customer . '/locations/' . $location,
+            [$security->tokenName => $hash, 'name' => 'Branch Two', 'note' => 'Hall B', 'code' => 'changed'])
+            ->assertRedirectTo(site_url('customers/' . $this->customer));
+        $this->seeInDatabase('locations', ['id' => $location, 'name' => 'Branch Two', 'note' => 'Hall B', 'code' => 'branch2']);
     }
 
     public function testReadOnlyCannotChangeInventory(): void

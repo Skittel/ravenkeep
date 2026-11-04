@@ -50,7 +50,7 @@ $html = $reader?->htmlBody();
 
     <div class="message-tags">
         <?php foreach ($tags as $tg): ?>
-            <span class="<?= rk_tag_class($tg['name']) ?>" title="<?= esc($tg['source'] === 'manual' ? lang('Rules.manual') : lang('Rules.byRule', [$tg['rule_name'] ?? '?']), 'attr') ?>"><?= esc($tg['name']) ?><?php if ($tg['source'] === 'manual'): ?><?= form_open('messages/' . $m['id'] . '/tags/' . $tg['id'] . '/delete', ['class' => 'inline tag-remove']) ?><button type="submit" title="<?= esc(lang('Rules.removeTag'), 'attr') ?>">×</button><?= form_close() ?><?php endif ?></span>
+            <span class="<?= rk_tag_class($tg['name']) ?>" title="<?= esc($tg['source'] === 'manual' ? lang('Rules.manual') : lang('Rules.byRule', [$tg['rule_name'] ?? '?']), 'attr') ?>"><?= esc(rk_tag_label($tg['name'])) ?><?php if ($tg['source'] === 'manual'): ?><?= form_open('messages/' . $m['id'] . '/tags/' . $tg['id'] . '/delete', ['class' => 'inline tag-remove']) ?><button type="submit" title="<?= esc(lang('Rules.removeTag'), 'attr') ?>">×</button><?= form_close() ?><?php endif ?></span>
         <?php endforeach ?>
         <?= form_open('messages/' . $m['id'] . '/tags', ['class' => 'inline tag-add']) ?>
             <input type="text" name="tag" maxlength="64" placeholder="<?= esc(lang('Rules.addTag'), 'attr') ?>" required>

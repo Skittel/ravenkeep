@@ -28,7 +28,7 @@ $this->setData(['active' => 'customers', 'title' => lang('Customers.title')]);
                 <?php foreach ($customers as $c): ?>
                     <tr>
                         <td><a href="<?= site_url('customers/' . $c['id']) ?>"><strong><?= esc($c['name']) ?></strong></a></td>
-                        <td><span class="<?= rk_tag_class('kunde:' . $c['code']) ?>">kunde:<?= esc($c['code']) ?></span></td>
+                        <td><span class="<?= rk_tag_class('kunde:' . $c['code']) ?>"><?= esc(rk_tag_label('kunde:' . $c['code'])) ?></span></td>
                         <td class="num"><?= (int) $c['locations'] ?></td>
                         <td class="num"><?= (int) $c['devices'] ?></td>
                         <td><?php if (! empty($overdue[$c['name']])): ?><span class="badge badge-rejected"><?= lang('Customers.overdueCount', [$overdue[$c['name']]]) ?></span><?php endif ?></td>

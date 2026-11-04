@@ -64,7 +64,7 @@ $this->setData(['active' => 'dashboard', 'title' => lang('Customers.navDashboard
             <h1><?= lang('Customers.errorsTitle') ?></h1>
             <table class="grid"><tbody>
             <?php foreach ($errors as $e): ?>
-                <tr><td><?= esc(rk_time($e['received_at'], 'd.m. H:i')) ?></td><td><span class="<?= rk_tag_class($e['tag']) ?>"><?= esc($e['tag']) ?></span></td>
+                <tr><td><?= esc(rk_time($e['received_at'], 'd.m. H:i')) ?></td><td><span class="<?= rk_tag_class($e['tag']) ?>"><?= esc(rk_tag_label($e['tag'])) ?></span></td>
                     <td><a href="<?= site_url('/') ?>?id=<?= (int) $e['id'] ?>"><?= esc($e['subject'] ?? '') ?></a></td></tr>
             <?php endforeach ?>
             </tbody></table>

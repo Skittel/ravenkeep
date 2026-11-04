@@ -58,7 +58,7 @@ $statusLabels = [
             <?php if (! empty($filter['tag'])): ?>
                 <div class="active-filters"><?= lang('Rules.filteredBy') ?>
                     <?php foreach ($filter['tag'] as $tag): ?>
-                        <a class="<?= rk_tag_class($tag) ?>" href="<?= rk_query($filter, rk_tag_toggle($filter, $tag)) ?>" title="<?= esc(lang('Rules.removeFilter'), 'attr') ?>"><?= esc($tag) ?> ×</a>
+                        <a class="<?= rk_tag_class($tag) ?>" href="<?= rk_query($filter, rk_tag_toggle($filter, $tag)) ?>" title="<?= esc(lang('Rules.removeFilter'), 'attr') ?>"><?= esc(rk_tag_label($tag)) ?> ×</a>
                     <?php endforeach ?>
                 </div>
             <?php endif ?>
@@ -79,7 +79,7 @@ $statusLabels = [
                         <td class="col-status"><span class="dot dot-<?= esc($m['status'], 'attr') ?>" title="<?= esc($statusLabels[$m['status']] ?? $m['status'], 'attr') ?>"></span></td>
                         <td class="col-from"><?= esc($m['mode'] === 'auth' ? $m['sasl_username'] : ($m['header_from'] ?: $m['envelope_sender'])) ?></td>
                         <td class="col-to"><?= esc($m['envelope_recipient']) ?></td>
-                        <td class="col-subject"><?php foreach ($tags[(int) $m['id']] ?? [] as $tg): ?><span class="<?= rk_tag_class($tg['name']) ?>"><?= esc($tg['name']) ?></span><?php endforeach ?><a href="<?= rk_query($filter, ['id' => $m['id']]) ?>"><?= esc($m['subject'] ?? '') ?: '<em>' . lang('Ui.noSubject') . '</em>' ?></a></td>
+                        <td class="col-subject"><?php foreach ($tags[(int) $m['id']] ?? [] as $tg): ?><span class="<?= rk_tag_class($tg['name']) ?>"><?= esc(rk_tag_label($tg['name'])) ?></span><?php endforeach ?><a href="<?= rk_query($filter, ['id' => $m['id']]) ?>"><?= esc($m['subject'] ?? '') ?: '<em>' . lang('Ui.noSubject') . '</em>' ?></a></td>
                     </tr>
                 <?php endforeach ?>
                 <?php if ($messages === []): ?>

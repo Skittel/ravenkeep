@@ -57,6 +57,7 @@ class Customers extends BaseController
             'profiles'   => $db->table('timeout_profiles')->orderBy('hours')->get()->getResultArray(),
             'tagNames'   => array_column($db->table('tags')->select('name')->orderBy('name')->get()->getResultArray(), 'name'),
             'edit'       => (int) $this->request->getGet('edit'),
+            'editLocation' => (int) $this->request->getGet('edit_location'),
         ]);
     }
 

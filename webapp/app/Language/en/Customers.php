@@ -39,6 +39,7 @@ return [
     'login'                 => 'SMTP login',
     'createLogin'           => 'Create login',
     'edit'                  => 'Edit',
+    'codeFixed'             => 'The code is fixed after creation (used in tags, rules and SMTP user names).',
     'saved'                 => 'Saved.',
     'tagsHint'              => 'Own tags, e.g. for device types and vendors. Customer, location and device tags are created automatically. Renaming updates rules; tags used by rules cannot be deleted.',
     'createTag'             => 'Create tag',

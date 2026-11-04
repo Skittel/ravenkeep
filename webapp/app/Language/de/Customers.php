@@ -39,6 +39,7 @@ return [
     'login'                 => 'SMTP-Zugang',
     'createLogin'           => 'Zugang anlegen',
     'edit'                  => 'Bearbeiten',
+    'codeFixed'             => 'Das Kürzel ist nach dem Anlegen fest (steckt in Tags, Regeln und SMTP-Benutzernamen).',
     'saved'                 => 'Gespeichert.',
     'tagsHint'              => 'Eigene Tags, z. B. für Gerätetypen und Hersteller. Kunden-, Standort- und Geräte-Tags entstehen automatisch. Umbenennen passt Regeln mit an; Tags, die Regeln verwenden, lassen sich nicht löschen.',
     'createTag'             => 'Tag anlegen',

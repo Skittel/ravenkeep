@@ -35,7 +35,7 @@ $post = static fn (string $url, string $label, string $class = '', ?string $conf
                                 <?= $j > 0 ? '<span class="joiner">' . ($r['match_mode'] === 'any' ? lang('Rules.or') : lang('Rules.and')) . '</span> ' : '' ?>
                                 <span class="cond"><?= lang('Rules.field_' . $c['field']) ?> <em><?= lang('Rules.op_' . $c['operator']) ?></em> <code><?= esc($c['value']) ?></code></span>
                             <?php endforeach ?></td>
-                        <td><?php foreach ($r['actions'] as $a): ?><span class="<?= rk_tag_class($a['value']) ?>"><?= esc($a['value']) ?></span><?php endforeach ?></td>
+                        <td><?php foreach ($r['actions'] as $a): ?><span class="<?= rk_tag_class($a['value']) ?>"><?= esc(rk_tag_label($a['value'])) ?></span><?php endforeach ?></td>
                         <td class="actions">
                             <?= $post('rules/' . $r['id'] . '/move/up', '↑', '', null) ?><?= $post('rules/' . $r['id'] . '/move/down', '↓', '', null) ?>
                             <?= $post('rules/' . $r['id'] . '/toggle', $r['enabled'] ? lang('Rules.disable') : lang('Rules.enable')) ?>

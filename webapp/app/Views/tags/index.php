@@ -27,7 +27,7 @@ $post = static fn (string $url, string $label, ?string $confirm = null): string 
                             <?= form_open('tags/' . $t['id'], ['class' => 'inline']) ?><input type="text" name="name" value="<?= esc($t['name'], 'attr') ?>" maxlength="64" required>
                             <button type="submit" class="button button-primary"><?= lang('Rules.save') ?></button> <a class="button" href="<?= site_url('tags') ?>"><?= lang('Rules.cancel') ?></a><?= form_close() ?>
                         <?php else: ?>
-                            <a class="<?= rk_tag_class($t['name']) ?>" href="<?= site_url('/') ?>?tag%5B0%5D=<?= urlencode($t['name']) ?>"><?= esc($t['name']) ?></a>
+                            <a class="<?= rk_tag_class($t['name']) ?>" href="<?= site_url('/') ?>?tag%5B0%5D=<?= urlencode($t['name']) ?>"><?= esc(rk_tag_label($t['name'])) ?></a>
                             <?php if ($t['reserved']): ?><span class="muted"><?= lang('Customers.automatic') ?></span><?php endif ?>
                         <?php endif ?></td>
                     <td class="num"><?= $t['messages'] ?></td>

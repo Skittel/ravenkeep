@@ -64,6 +64,14 @@ if (! function_exists('rk_tag_class')) {
     }
 }
 
+if (! function_exists('rk_tag_label')) {
+    /** Display form of a tag: "typ:nas" is shown as "typ - nas" (stored and entered with ":"). */
+    function rk_tag_label(string $name): string
+    {
+        return str_contains($name, ':') ? implode(' - ', explode(':', $name, 2)) : $name;
+    }
+}
+
 if (! function_exists('rk_tag_toggle')) {
     /** Filter parameters with the tag added or removed (sidebar tree / chips). */
     function rk_tag_toggle(array $filter, string $tag): array
