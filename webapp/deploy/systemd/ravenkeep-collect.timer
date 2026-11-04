@@ -1,10 +1,10 @@
 [Unit]
-Description=Run the Ravenkeep collector every minute
+Description=Run the Ravenkeep collector every 15 seconds (until MailRunner webhooks are used)
 
 [Timer]
-OnBootSec=1min
-OnUnitActiveSec=1min
-AccuracySec=5s
+OnBootSec=30s
+OnUnitActiveSec=15s
+AccuracySec=1s
 
 [Install]
 WantedBy=timers.target
