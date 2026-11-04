@@ -1,9 +1,9 @@
 [Unit]
-Description=Run the Ravenkeep collector every 15 seconds (until MailRunner webhooks are used)
+Description=Run the Ravenkeep collector every minute (fallback; normally started by the MailRunner ping)
 
 [Timer]
 OnBootSec=30s
-OnUnitActiveSec=15s
+OnUnitActiveSec=60s
 AccuracySec=1s
 
 [Install]

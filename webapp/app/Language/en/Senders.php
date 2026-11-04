@@ -57,4 +57,13 @@ return [
     'pushed'         => 'delivered',
     'applied'        => 'applied',
     'error'          => 'Error',
+    'webhookTitle' => 'Ping from MailRunner (webhook)',
+    'webhookHint' => 'Vega sends a ping after new mail and Ravenkeep collects at once. Without a ping Ravenkeep collects every minute. The ping URL is renewed every hour.',
+    'webhookOn' => 'active',
+    'webhookOff' => 'off (collect every minute only)',
+    'webhookWarn' => 'warning',
+    'webhookLastPing' => 'Last ping',
+    'webhookRotated' => 'URL renewed',
+    'webhookLate' => 'Late collection',
+    'webhookLateHint' => 'a message was only picked up by the minute run; the ping was missing or lost (last 24 h).',
 ];

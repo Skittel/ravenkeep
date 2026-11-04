@@ -19,6 +19,9 @@ class Mailrunner extends BaseConfig
     public string $url   = '';
     public string $token = '';
 
+    /** Lock and ping signal of the collect runs (T-22); writable by the web server user. */
+    public string $runDir = '/var/lib/ravenkeep-app/run';
+
     /** Timeout of one API request in seconds. */
     public int $timeout = 30;
 

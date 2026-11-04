@@ -74,6 +74,28 @@ class MailrunnerClient
         return $result['unknown'] ?? [];
     }
 
+    /**
+     * Register the ping URL of the project (PUT /v1/webhook). The node sends an empty POST with
+     * "X-MailRunner-Event: messages" after new mail, at most once per cooldown.
+     *
+     * @return array<string, mixed>
+     */
+    public function setWebhook(string $url, int $cooldownSeconds = 2): array
+    {
+        return $this->json('PUT', '/v1/webhook', ['url' => $url, 'cooldown_seconds' => $cooldownSeconds]);
+    }
+
+    /** @return array<string, mixed> */
+    public function getWebhook(): array
+    {
+        return $this->json('GET', '/v1/webhook');
+    }
+
+    public function deleteWebhook(): void
+    {
+        $this->json('DELETE', '/v1/webhook');
+    }
+
     /** @return array<string, mixed> */
     private function json(string $method, string $path, ?array $body = null): array
     {

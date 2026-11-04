@@ -11,6 +11,7 @@ $routes->get('senders', 'Senders::index');
 $routes->post('senders', 'Senders::save');
 $routes->post('senders/(:num)/delete', 'Senders::delete/$1');
 $routes->get('nodes', 'Nodes::index');
+$routes->post('hooks/mailrunner/(:segment)', 'Hooks::mailrunner/$1');
 $routes->get('rules', 'Rules::index');
 $routes->get('rules/new', 'Rules::edit');
 $routes->post('rules', 'Rules::save');

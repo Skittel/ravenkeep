@@ -75,8 +75,8 @@ class Filters extends BaseFilters
     public array $globals = [
         'before' => [
             // 'honeypot',
-            'rklogin' => ['except' => ['auth/*']], // sign-in and role check first
-            'csrf',
+            'rklogin' => ['except' => ['auth/*', 'hooks/*']], // sign-in and role check first; hooks: MailRunner ping (T-22)
+            'csrf'    => ['except' => ['hooks/*']],
             // 'invalidchars',
         ],
         'after' => [

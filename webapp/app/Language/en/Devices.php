@@ -30,7 +30,7 @@ return [
     'deleted'              => 'Device deleted.',
     'disabled'             => 'disabled',
     'domainsTitle'         => 'Local domains',
-    'domainsHint'          => 'Domains the nodes accept mail for (any address). Each domain needs an MX record in DNS. Changes reload Postfix on the nodes.',
+    'domainsHint'          => 'Which domains are accepted is set in the MailRunner project (routes in the MailRunner admin), not by this list. It is only used to choose the domain of SMTP logins on the Devices page.',
     'networksTitle'        => 'Admin networks',
     'networksHint'         => 'Addresses and networks fail2ban never bans. The server firewall (ufw) is not changed.',
     'network'              => 'Address or network',

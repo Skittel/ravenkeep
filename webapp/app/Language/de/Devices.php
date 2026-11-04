@@ -30,7 +30,7 @@ return [
     'deleted'              => 'Gerät gelöscht.',
     'disabled'             => 'gesperrt',
     'domainsTitle'         => 'Lokale Domains',
-    'domainsHint'          => 'Domains, für die die Knoten Mails annehmen (jede Adresse). Für jede Domain ist ein MX-Eintrag im DNS nötig. Änderungen laden Postfix auf den Knoten neu.',
+    'domainsHint'          => 'Welche Domains angenommen werden, legt das Mailrunner-Projekt fest (Routen in der Mailrunner-Admin) – nicht diese Liste. Sie dient nur noch der Auswahl der Domain bei SMTP-Zugängen auf der Seite Geräte.',
     'networksTitle'        => 'Admin-Netze',
     'networksHint'         => 'Adressen und Netze, die fail2ban nie sperrt. Die Server-Firewall (ufw) wird davon nicht geändert.',
     'network'              => 'Adresse oder Netz',

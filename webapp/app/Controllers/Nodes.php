@@ -2,6 +2,8 @@
 
 namespace App\Controllers;
 
+use App\Libraries\Mailrunner\CollectSignal;
+use App\Libraries\Mailrunner\Webhook;
 use App\Libraries\Nodes\NodeConfigSync;
 
 /**
@@ -20,6 +22,7 @@ class Nodes extends BaseController
         return view('nodes/index', [
             'nodes'       => $db->table('nodes')->orderBy('name')->get()->getResultArray(),
             'currentHash' => $sync->bundle()['hash'],
+            'webhook'     => (new Webhook($db, CollectSignal::fromConfig(), config('App')->baseURL))->state(),
         ]);
     }
 }

@@ -2,6 +2,7 @@
 /**
  * @var list<array> $nodes
  * @var string $currentHash
+ * @var array<string, ?string> $webhook
  */
 $this->setData(['active' => 'nodes', 'title' => lang('Senders.nodesTitle')]);
 ?>
@@ -39,6 +40,30 @@ $this->setData(['active' => 'nodes', 'title' => lang('Senders.nodesTitle')]);
                 </tr>
             <?php endforeach ?>
             </tbody>
+        </table>
+    </section>
+
+    <section class="card">
+        <h1><?= lang('Senders.webhookTitle') ?></h1>
+        <p class="hint"><?= lang('Senders.webhookHint') ?></p>
+        <?php
+        $lateRecent = $webhook['webhook_late_at'] !== null && strtotime($webhook['webhook_late_at'] . ' UTC') > time() - 86400;
+        $state = match (true) {
+            $webhook['webhook_token'] === null      => ['blocked', lang('Senders.webhookOff')],
+            $webhook['webhook_rotation_error'] !== null || $lateRecent => ['pending', lang('Senders.webhookWarn')],
+            default                                 => ['accepted', lang('Senders.webhookOn')],
+        };
+        ?>
+        <table class="kv">
+            <tr><th><?= lang('Senders.configStatus') ?></th><td><span class="badge badge-<?= $state[0] ?>"><?= esc($state[1]) ?></span></td></tr>
+            <tr><th><?= lang('Senders.webhookLastPing') ?></th><td><?= esc($webhook['webhook_last_ping_at'] ? rk_time($webhook['webhook_last_ping_at']) : '–') ?></td></tr>
+            <tr><th><?= lang('Senders.webhookRotated') ?></th><td><?= esc($webhook['webhook_rotated_at'] ? rk_time($webhook['webhook_rotated_at']) : '–') ?></td></tr>
+            <?php if ($webhook['webhook_rotation_error'] !== null): ?>
+                <tr><th><?= lang('Senders.error') ?></th><td class="error"><?= esc($webhook['webhook_rotation_error']) ?></td></tr>
+            <?php endif ?>
+            <?php if ($lateRecent): ?>
+                <tr><th><?= lang('Senders.webhookLate') ?></th><td class="error"><?= esc(rk_time($webhook['webhook_late_at'])) ?> – <?= lang('Senders.webhookLateHint') ?></td></tr>
+            <?php endif ?>
         </table>
     </section>
 </div>

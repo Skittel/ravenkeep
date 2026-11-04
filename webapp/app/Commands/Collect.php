@@ -5,7 +5,9 @@ namespace App\Commands;
 use App\Libraries\Collector\Collector;
 use App\Libraries\Collector\LocalSpoolTransport;
 use App\Libraries\Collector\MailrunnerSpoolTransport;
+use App\Libraries\Mailrunner\CollectSignal;
 use App\Libraries\Mailrunner\MailrunnerClient;
+use App\Libraries\Mailrunner\Webhook;
 use App\Libraries\Nodes\NodeConfigSync;
 use App\Libraries\Rules\RuleRunner;
 use App\Libraries\Senders\SenderRuleService;
@@ -26,8 +28,39 @@ class Collect extends BaseCommand
     protected $description = 'Imports received messages from all enabled MX nodes and delivers pending config changes.';
     protected $usage       = 'ravenkeep:collect';
 
+    /** A message collected later than this after its reception had no (working) ping. */
+    private const LATE_SECONDS = 45;
+
     public function run(array $params)
     {
+        $signal = CollectSignal::fromConfig();
+        if (! $signal->acquire()) {
+            // another collect run is active: ask it for one more round and end at once (T-22)
+            $signal->request();
+            CLI::write('collect already running: follow-up requested');
+
+            return EXIT_SUCCESS;
+        }
+
+        try {
+            $exitCode = EXIT_SUCCESS;
+            for ($round = 1; $round <= CollectSignal::MAX_ROUNDS; $round++) {
+                $signal->startRound();
+                $exitCode = max($exitCode, $this->collectOnce());
+                if (! $signal->hasPending()) {
+                    break;
+                }
+            }
+        } finally {
+            $signal->release();
+        }
+
+        return $exitCode;
+    }
+
+    private function collectOnce(): int
+    {
+        $startedAt = gmdate('Y-m-d H:i:s');
         $db        = Database::connect();
         $config    = config('Ravenkeep');
         $collector = new Collector($db, $config->archivePath, $config->collectBatchSize);
@@ -63,6 +96,14 @@ class Collect extends BaseCommand
             }
 
             $db->table('nodes')->where('id', $node['id'])->update($update);
+        }
+
+        // A message that waited longer than a ping would take: the ping is missing or failed
+        $webhook = new Webhook($db, CollectSignal::fromConfig(), config('App')->baseURL);
+        if ($webhook->isEnabled() && $db->table('messages')->where('created_at >=', $startedAt)
+            ->where('TIMESTAMPDIFF(SECOND, received_at, created_at) >', self::LATE_SECONDS, false)->countAllResults() > 0) {
+            $webhook->markLate();
+            CLI::write('late message: no ping received in time');
         }
 
         // Apply the rules to new messages and, after rule changes, re-evaluate older ones in batches

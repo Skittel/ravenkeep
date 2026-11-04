@@ -1,0 +1,10 @@
+[Unit]
+Description=Start the Ravenkeep collector when the MailRunner ping requests it
+
+[Path]
+# written by POST /hooks/mailrunner/<value> (and by a collect run that found another one running)
+PathChanged=/var/lib/ravenkeep-app/run/collect.pending
+Unit=ravenkeep-collect.service
+
+[Install]
+WantedBy=paths.target

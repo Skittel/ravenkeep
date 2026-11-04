@@ -1,0 +1,10 @@
+[Unit]
+Description=Ravenkeep: renew the MailRunner ping URL
+After=mariadb.service network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=www-data
+Group=www-data
+ExecStart=/usr/bin/php /srv/ravenkeep/webapp/spark ravenkeep:webhook rotate

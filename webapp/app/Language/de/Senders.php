@@ -57,4 +57,13 @@ return [
     'pushed'         => 'ausgeliefert',
     'applied'        => 'übernommen',
     'error'          => 'Fehler',
+    'webhookTitle' => 'Ping von Mailrunner (Webhook)',
+    'webhookHint' => 'Vega schickt nach neuen Mails einen Ping, Ravenkeep holt dann sofort ab. Ohne Ping holt Ravenkeep jede Minute ab. Die Ping-Adresse wird stündlich erneuert.',
+    'webhookOn' => 'aktiv',
+    'webhookOff' => 'aus (nur Abruf jede Minute)',
+    'webhookWarn' => 'Warnung',
+    'webhookLastPing' => 'Letzter Ping',
+    'webhookRotated' => 'Adresse erneuert',
+    'webhookLate' => 'Verspätete Abholung',
+    'webhookLateHint' => 'eine Mail kam erst mit dem Minutenabruf, der Ping fehlte oder ging verloren (letzte 24 h).',
 ];
