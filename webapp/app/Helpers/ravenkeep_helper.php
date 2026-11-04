@@ -72,6 +72,34 @@ if (! function_exists('rk_tag_label')) {
     }
 }
 
+if (! function_exists('rk_tag_data')) {
+    /**
+     * Known tags for the tag picker in assets/app.js (JSON, not executed: allowed by the CSP).
+     *
+     * @param list<string> $names
+     */
+    function rk_tag_data(array $names): string
+    {
+        $data = array_map(static fn (string $n): array => ['n' => $n, 'l' => rk_tag_label($n), 'c' => rk_tag_class($n)], $names);
+
+        return '<script type="application/json" id="rk-tags">'
+            . json_encode($data, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) . '</script>';
+    }
+}
+
+if (! function_exists('rk_tag_picker_attrs')) {
+    /** Data attributes of an input that becomes a tag picker ("multi" = comma list, "single" = one tag). */
+    function rk_tag_picker_attrs(string $mode = 'multi', array $excludeTypes = []): string
+    {
+        return ' data-tag-picker="' . $mode . '"'
+            . ($excludeTypes === [] ? '' : ' data-tag-exclude="' . esc(implode(',', $excludeTypes), 'attr') . '"')
+            . ' data-tag-new="' . esc(lang('Rules.pickerNew'), 'attr') . '"'
+            . ' data-tag-none="' . esc(lang('Rules.pickerNone'), 'attr') . '"'
+            . ' data-tag-placeholder="' . esc(lang('Rules.pickerPlaceholder'), 'attr') . '"'
+            . ' data-tag-remove="' . esc(lang('Rules.removeTag'), 'attr') . '"';
+    }
+}
+
 if (! function_exists('rk_tag_toggle')) {
     /** Filter parameters with the tag added or removed (sidebar tree / chips). */
     function rk_tag_toggle(array $filter, string $tag): array

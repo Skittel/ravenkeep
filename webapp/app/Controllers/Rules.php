@@ -40,6 +40,7 @@ class Rules extends BaseController
         return view('rules/edit', [
             'rule'    => $rule,
             'preview' => $rule !== null ? $this->repository()->preview($rule) : null,
+            'tagNames' => array_column(db_connect()->table('tags')->select('name')->orderBy('name')->get()->getResultArray(), 'name'),
         ]);
     }
 

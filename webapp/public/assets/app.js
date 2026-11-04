@@ -8,6 +8,202 @@
         if (msg && !window.confirm(msg)) e.preventDefault();
     });
 
+    // Tag picker: inputs with data-tag-picker get a searchable list of the known tags (#rk-tags).
+    //   multi  = comma-separated list shown as chips (the original input keeps the value for the form)
+    //   single = one tag (rule conditions on tags); only active while the row's field is "tag"
+    const tagData = document.getElementById('rk-tags');
+    const knownTags = tagData ? JSON.parse(tagData.textContent) : [];
+    const tagInfo = function (name) {
+        return knownTags.find(function (t) { return t.n === name; }) || { n: name, l: name.replace(':', ' - '), c: 'tag tag-c0' };
+    };
+    // "typ - nas" typed as shown is stored as "typ:nas"
+    const normalizeTag = function (text) {
+        return text.trim().replace(/\s+-\s+/, ':').replace(/\s*:\s*/, ':').toLowerCase();
+    };
+
+    function attachList(input, opts) {
+        const box = document.createElement('ul');
+        box.className = 'tag-picker-list';
+        box.hidden = true;
+        opts.anchor.appendChild(box);
+        let items = [], active = -1;
+
+        const render = function () {
+            const q = input.value.trim().toLowerCase();
+            const taken = opts.selected();
+            const exclude = opts.exclude;
+            items = knownTags.filter(function (t) {
+                if (taken.indexOf(t.n) !== -1) return false;
+                if (exclude.indexOf(t.n.split(':')[0]) !== -1 && t.n.indexOf(':') !== -1) return false;
+                return q === '' || t.n.indexOf(q) !== -1 || t.l.toLowerCase().indexOf(q) !== -1;
+            });
+            items.sort(function (a, b) {
+                const pa = a.n.indexOf(q) === 0 || a.n.split(':').pop().indexOf(q) === 0 ? 0 : 1;
+                const pb = b.n.indexOf(q) === 0 || b.n.split(':').pop().indexOf(q) === 0 ? 0 : 1;
+                return pa - pb || a.n.localeCompare(b.n);
+            });
+            items = items.slice(0, 50).map(function (t) { return { tag: t, isNew: false }; });
+            const typed = normalizeTag(input.value);
+            if (typed !== '' && !knownTags.some(function (t) { return t.n === typed; }) && taken.indexOf(typed) === -1) {
+                items.push({ tag: tagInfo(typed), isNew: true });
+            }
+            box.textContent = '';
+            items.forEach(function (it, i) {
+                const li = document.createElement('li');
+                li.dataset.index = i;
+                if (it.isNew) {
+                    const hint = document.createElement('span');
+                    hint.className = 'muted';
+                    hint.textContent = opts.labels.newTag + ': ';
+                    li.appendChild(hint);
+                }
+                const chip = document.createElement('span');
+                chip.className = it.tag.c;
+                chip.textContent = it.tag.l;
+                li.appendChild(chip);
+                box.appendChild(li);
+            });
+            if (items.length === 0) {
+                const li = document.createElement('li');
+                li.className = 'muted empty';
+                li.textContent = opts.labels.none;
+                box.appendChild(li);
+            }
+            active = items.length > 0 && q !== '' ? 0 : -1;
+            highlight();
+            box.hidden = false;
+        };
+        const highlight = function () {
+            box.querySelectorAll('li[data-index]').forEach(function (li) {
+                li.classList.toggle('active', Number(li.dataset.index) === active);
+                if (Number(li.dataset.index) === active) li.scrollIntoView({ block: 'nearest' });
+            });
+        };
+        const choose = function (i) {
+            if (!items[i]) return;
+            opts.pick(items[i].tag.n);
+            if (opts.keepOpen) render(); else box.hidden = true;
+        };
+
+        input.addEventListener('focus', function () { if (opts.enabled()) render(); });
+        input.addEventListener('input', function () { if (opts.enabled()) render(); });
+        input.addEventListener('blur', function () { setTimeout(function () { box.hidden = true; }, 150); });
+        input.addEventListener('keydown', function (e) {
+            if (!opts.enabled()) return;
+            if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+                e.preventDefault();
+                if (box.hidden) render();
+                if (items.length) active = (active + (e.key === 'ArrowDown' ? 1 : items.length - 1)) % items.length;
+                highlight();
+            } else if (e.key === 'Enter' && !box.hidden && active >= 0) {
+                e.preventDefault();
+                choose(active);
+            } else if (e.key === 'Escape') {
+                box.hidden = true;
+            } else if (opts.onKey) {
+                opts.onKey(e, render);
+            }
+        });
+        box.addEventListener('mousedown', function (e) {
+            const li = e.target.closest('li[data-index]');
+            if (!li) return;
+            e.preventDefault(); // keep the focus in the input
+            choose(Number(li.dataset.index));
+        });
+    }
+
+    document.querySelectorAll('input[data-tag-picker="multi"]').forEach(function (field) {
+        const labels = { newTag: field.dataset.tagNew, none: field.dataset.tagNone, remove: field.dataset.tagRemove };
+        const exclude = (field.dataset.tagExclude || '').split(',').filter(Boolean);
+        const wrap = document.createElement('div');
+        wrap.className = 'tag-picker';
+        const chips = document.createElement('span');
+        chips.className = 'tag-picker-chips';
+        const search = document.createElement('input');
+        search.type = 'text';
+        search.className = 'tag-picker-search';
+        search.autocomplete = 'off';
+        search.placeholder = field.dataset.tagPlaceholder || '';
+        field.parentNode.insertBefore(wrap, field);
+        wrap.appendChild(chips);
+        wrap.appendChild(search);
+        wrap.appendChild(field);
+        field.type = 'hidden';
+        const required = field.required;
+        field.required = false;
+
+        let selected = field.value.split(',').map(function (t) { return t.trim(); }).filter(Boolean);
+        const sync = function () {
+            field.value = selected.join(', ');
+            chips.textContent = '';
+            selected.forEach(function (name) {
+                const t = tagInfo(name);
+                const chip = document.createElement('span');
+                chip.className = t.c;
+                chip.textContent = t.l;
+                const x = document.createElement('button');
+                x.type = 'button';
+                x.className = 'tag-picker-remove';
+                x.title = labels.remove;
+                x.textContent = '×';
+                x.addEventListener('click', function () {
+                    selected = selected.filter(function (s) { return s !== name; });
+                    sync();
+                    search.focus();
+                });
+                chip.appendChild(x);
+                chips.appendChild(chip);
+            });
+            search.required = required && selected.length === 0;
+        };
+        const add = function (name) {
+            name = normalizeTag(name);
+            if (name !== '' && selected.indexOf(name) === -1) selected.push(name);
+            search.value = '';
+            sync();
+        };
+        wrap.addEventListener('click', function (e) { if (e.target === wrap || e.target === chips) search.focus(); });
+        attachList(search, {
+            anchor: wrap, labels: labels, exclude: exclude, keepOpen: true,
+            enabled: function () { return true; },
+            selected: function () { return selected; },
+            pick: add,
+            onKey: function (e, render) {
+                if ((e.key === 'Enter' || e.key === ',' || e.key === 'Tab') && search.value.trim() !== '') {
+                    if (e.key !== 'Tab') e.preventDefault();
+                    add(search.value);
+                    render();
+                } else if (e.key === 'Enter') {
+                    e.preventDefault(); // Enter in the empty search field does not submit the form
+                } else if (e.key === 'Backspace' && search.value === '' && selected.length) {
+                    selected.pop();
+                    sync();
+                    render();
+                }
+            },
+        });
+        // A typed but not yet confirmed tag is not lost on submit
+        field.form.addEventListener('submit', function () { if (search.value.trim() !== '') add(search.value); });
+        sync();
+    });
+
+    const attachSingle = function (input) {
+        if (input.dataset.tagPickerReady) return;
+        input.dataset.tagPickerReady = '1';
+        const row = input.closest('.cond-row');
+        const holder = document.createElement('span');
+        holder.className = 'tag-picker-single';
+        input.parentNode.insertBefore(holder, input);
+        holder.appendChild(input);
+        attachList(input, {
+            anchor: holder, labels: { newTag: input.dataset.tagNew, none: input.dataset.tagNone }, exclude: [], keepOpen: false,
+            enabled: function () { return !row || row.querySelector('.cond-field').value === 'tag'; },
+            selected: function () { return []; },
+            pick: function (name) { input.value = name; },
+        });
+    };
+    document.querySelectorAll('input[data-tag-picker="single"]').forEach(attachSingle);
+
     // Rule editor: add/remove condition rows, offer only the operators that fit the field
     const conditions = document.getElementById('conditions');
     if (conditions) {
@@ -34,6 +230,7 @@
             const row = document.getElementById('condition-template').content.firstElementChild.cloneNode(true);
             conditions.appendChild(row);
             syncOperators(row);
+            row.querySelectorAll('input[data-tag-picker="single"]').forEach(attachSingle);
             row.querySelector('input').focus();
         });
     }

@@ -2,6 +2,7 @@
 /**
  * @var array|null $rule
  * @var array{matched: int, sample: int}|null $preview
+ * @var list<string> $tagNames
  */
 use App\Libraries\Rules\RuleEngine;
 
@@ -22,12 +23,13 @@ $row = static function (array $c) use ($fields, $operators): string {
         }
     }
 
-    return $html . '</select><input type="text" name="conditions[value][]" maxlength="255" value="' . esc($c['value'], 'attr') . '">'
+    return $html . '</select><input type="text" name="conditions[value][]" maxlength="255" autocomplete="off" value="' . esc($c['value'], 'attr') . '"' . rk_tag_picker_attrs('single') . '>'
         . '<button type="button" class="button cond-remove" title="' . esc(lang('Rules.removeCondition'), 'attr') . '">×</button></div>';
 };
 ?>
 <?= $this->extend('layout') ?>
 <?= $this->section('content') ?>
+<?= rk_tag_data($tagNames) ?>
 <div class="page">
     <section class="card rule-edit">
         <h1><?= $rule ? esc($rule['name']) : lang('Rules.new') ?></h1>
@@ -53,7 +55,7 @@ $row = static function (array $c) use ($fields, $operators): string {
             </div>
 
             <label class="field"><?= lang('Rules.thenTags') ?>
-                <input type="text" name="tags" required value="<?= esc(old('tags', $tags), 'attr') ?>" placeholder="kunde:acme, typ:nas"></label>
+                <input type="text" name="tags" required autocomplete="off" value="<?= esc(old('tags', $tags), 'attr') ?>" placeholder="kunde:acme, typ:nas"<?= rk_tag_picker_attrs() ?>></label>
             <p class="hint"><?= lang('Rules.tagHint') ?></p>
 
             <label class="check"><input type="checkbox" name="enabled" value="1" <?= ($rule['enabled'] ?? 1) ? 'checked' : '' ?>> <?= lang('Rules.enabled') ?></label>

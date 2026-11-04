@@ -26,7 +26,7 @@ $autoTag = static fn (string $t) => in_array(explode(':', $t, 2)[0], ['kunde', '
 ?>
 <?= $this->extend('layout') ?>
 <?= $this->section('content') ?>
-<datalist id="tag-names"><?php foreach ($tagNames as $n): ?><option value="<?= esc($n, 'attr') ?>"><?php endforeach ?></datalist>
+<?= rk_tag_data($tagNames) ?>
 <div class="page">
     <section class="card">
         <div class="card-head">
@@ -92,7 +92,7 @@ $autoTag = static fn (string $t) => in_array(explode(':', $t, 2)[0], ['kunde', '
             <label><?= lang('Customers.code') ?><input type="text" name="code" required maxlength="32" pattern="[a-z0-9][a-z0-9\-]*" placeholder="nas05" class="code-input"></label>
             <label><?= lang('Customers.location') ?><select name="location_id"><option value="">–</option>
                 <?php foreach ($locations as $l): ?><option value="<?= (int) $l['id'] ?>"><?= esc($l['name']) ?></option><?php endforeach ?></select></label>
-            <label><?= lang('Customers.extraTags') ?><input type="text" name="tags" list="tag-names" placeholder="nas, qnap"></label>
+            <label><?= lang('Customers.extraTags') ?><input type="text" name="tags" autocomplete="off" placeholder="nas, qnap"<?= rk_tag_picker_attrs('multi', ['kunde', 'standort', 'geraet']) ?>></label>
             <label><?= lang('Customers.profile') ?><?= $profileSelect(null) ?></label>
             <button type="submit" class="button button-primary"><?= lang('Customers.createDevice') ?></button>
         <?= form_close() ?>
@@ -107,7 +107,7 @@ $autoTag = static fn (string $t) => in_array(explode(':', $t, 2)[0], ['kunde', '
                         <tr class="editing"><td colspan="6">
                             <?= form_open('customers/' . $cid . '/devices/' . $id, ['class' => 'rule-form']) ?>
                                 <label><?= lang('Customers.name') ?><input type="text" name="name" required maxlength="128" value="<?= esc($d['name'], 'attr') ?>"></label>
-                                <label><?= lang('Customers.extraTags') ?><input type="text" name="tags" list="tag-names" value="<?= esc(implode(', ', $own), 'attr') ?>"></label>
+                                <label><?= lang('Customers.extraTags') ?><input type="text" name="tags" autocomplete="off" value="<?= esc(implode(', ', $own), 'attr') ?>"<?= rk_tag_picker_attrs('multi', ['kunde', 'standort', 'geraet']) ?>></label>
                                 <label><?= lang('Customers.profile') ?><?= $profileSelect($d['timeout_profile_id'] !== null ? (int) $d['timeout_profile_id'] : null) ?></label>
                                 <label><?= lang('Senders.note') ?><input type="text" name="note" maxlength="255" value="<?= esc($d['note'] ?? '', 'attr') ?>"></label>
                                 <button type="submit" class="button button-primary"><?= lang('Rules.save') ?></button>

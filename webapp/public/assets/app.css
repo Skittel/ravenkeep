@@ -199,3 +199,22 @@ table.devices code { font-size: 11px; }
 .ok-text { color: var(--accepted); font-weight: 600; }
 .role-ro-only { display: none; } .role-ro .role-ro-only { display: inline; }
 .mainnav a { padding: 6px 9px; }
+
+/* Tag picker (assets/app.js) */
+.tag-picker { position: relative; display: flex; flex-wrap: wrap; align-items: center; gap: 2px; max-width: 520px; min-height: 34px;
+              padding: 4px 6px; border: 1px solid var(--border); border-radius: 6px; background: #fff; cursor: text; }
+.tag-picker:focus-within { border-color: var(--accent); }
+.tag-picker .tag { margin: 0; display: inline-flex; align-items: center; gap: 2px; }
+.tag-picker-chips { display: contents; }
+.tag-picker-remove { border: 0; background: none; padding: 0 0 0 2px; font: inherit; line-height: 1; color: inherit; cursor: pointer; opacity: .6; }
+.tag-picker-remove:hover { opacity: 1; }
+.rule-edit .tag-picker input.tag-picker-search, .rule-form .tag-picker input.tag-picker-search {
+              flex: 1; min-width: 160px; border: 0; padding: 3px 2px; outline: none; }
+.tag-picker-single { position: relative; display: inline-block; }
+.tag-picker-list { position: absolute; z-index: 20; left: 0; top: 100%; margin: 2px 0 0; padding: 4px 0; min-width: 260px; max-height: 280px;
+                   overflow-y: auto; list-style: none; background: #fff; border: 1px solid var(--border); border-radius: 6px;
+                   box-shadow: 0 6px 18px rgba(0,0,0,.12); }
+.tag-picker-list li { padding: 4px 10px; cursor: pointer; font-size: 13px; }
+.tag-picker-list li.active, .tag-picker-list li[data-index]:hover { background: var(--sel); }
+.tag-picker-list li.empty { cursor: default; }
+.tag-picker-list .tag { margin: 0; }

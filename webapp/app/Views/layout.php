@@ -16,8 +16,8 @@ $user   = session('user');
     <title><?= esc(($title ?? null) ? $title . ' – ' . lang('Ui.appName') : lang('Ui.appName')) ?></title>
     <link rel="icon" href="<?= base_url('favicon.ico') ?>" sizes="any">
     <link rel="apple-touch-icon" href="<?= base_url('assets/icon.png') ?>">
-    <link rel="stylesheet" href="<?= base_url('assets/app.css') ?>">
-    <script src="<?= base_url('assets/app.js') ?>" defer></script>
+    <link rel="stylesheet" href="<?= base_url('assets/app.css') ?>?v=<?= filemtime(FCPATH . 'assets/app.css') ?>">
+    <script src="<?= base_url('assets/app.js') ?>?v=<?= filemtime(FCPATH . 'assets/app.js') ?>" defer></script>
 </head>
 <body class="<?= ($user['role'] ?? '') === 'rw' ? 'role-rw' : 'role-ro' ?>">
 <div class="app <?= $active === 'messages' ? 'app-mail' : 'app-page' ?>">
