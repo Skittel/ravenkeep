@@ -5,10 +5,10 @@ namespace App\Libraries\Senders;
 use InvalidArgumentException;
 
 /**
- * Sender allow/block rules – the same matching logic as the MX node (mx/ravenkeep_mx/intake.py),
- * so the web app can reclassify stored messages exactly like the node would.
+ * Sender allow/block rules. Applied when a message is collected from the MailRunner receive node
+ * and again when the rules change (reclassification of stored messages).
  *
- * Classification of a message received on the public MX:
+ * Classification of a message received without SMTP login:
  *   block rule matches  -> blocked
  *   allow rule matches  -> accepted if the node's sender check passed, otherwise rejected
  *   no rule             -> pending

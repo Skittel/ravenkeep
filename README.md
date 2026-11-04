@@ -9,11 +9,13 @@ message that matters, or the one that never arrived, is easily missed.
 
 ## Features (planned)
 
-- **Dedicated mail intake** – two lightweight SMTP/MX nodes accept status mails
-  via authenticated submission (per-device identities) or public MX with an
-  allow-list of sender domains. No open relay, no forwarding.
-- **Sender authentication** – SPF, DKIM and DMARC alignment are checked.
-  Rejected messages are shown with the reason for rejection.
+- **Mail intake via MailRunner** – a MailRunner receive node
+  (https://github.com/Skittel/MailRunner) accepts and analyses the status mails;
+  Ravenkeep collects them through the MailRunner API. Sending will use a
+  separate MailRunner send node.
+- **Sender rules** – allow/block lists per sender domain or address; a message
+  is accepted only if SPF or DKIM passes and aligns with the From domain
+  (analysis by the MailRunner node). Rejected messages show the reason.
 - **Central archive** – original messages (EML) plus metadata, full-text search.
 - **Rules and tags** – free, combinable tags (e.g. `customer:x`, `type:nas`,
   `task:verify`, `status:error`) assigned by transparent rules.
@@ -26,15 +28,17 @@ message that matters, or the one that never arrived, is easily missed.
 ## Architecture
 
 ```
-status systems ──SMTP──> MX node 1 ┐
-                         MX node 2 ┴──> Ravenkeep web app ──> Zammad
-                     (local Maildir)    (collector, archive, rules, UI)
+status systems ──SMTP──> MailRunner receive node ──API──> Ravenkeep web app ──> Zammad
+                         (Postfix, analysis)              (collector, archive, rules, UI)
 ```
+
+Access to the receive node: `/etc/ravenkeep/mailrunner.env` (outside the repository)
+with `MAILRUNNER_URL` and `MAILRUNNER_TOKEN`; a node row with transport `mailrunner`.
 
 ## Tech stack
 
 - Web app: CodeIgniter 4, PHP, MariaDB
-- MX nodes: Postfix, sender authentication checks in Python
+- Mail intake: MailRunner receive node (Postfix + analysis), pull API
 
 ## Status
 

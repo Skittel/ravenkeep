@@ -5,7 +5,8 @@ namespace App\Libraries\Collector;
 /**
  * Access to the spool of one MX node. The node stores each message as <id>.eml plus <id>.json
  * in "new/"; the .json file is written last and marks a complete entry.
- * Implementations: LocalSpoolTransport (same server); an SSH/SFTP transport follows for remote nodes.
+ * Implementations: MailrunnerSpoolTransport (MailRunner receive node, E-014) and LocalSpoolTransport
+ * (spool of the former local Postfix MX, kept for tests and existing node rows).
  */
 interface SpoolTransport
 {

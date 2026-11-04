@@ -38,6 +38,12 @@ class NodeConfigSync
         return ['files' => $files, 'hash' => $hash];
     }
 
+    /** Only the former local MX nodes receive config files; MailRunner nodes are configured by their operator. */
+    public static function hasConfigPush(array $node): bool
+    {
+        return $node['transport'] !== 'mailrunner';
+    }
+
     public function transportFor(array $node): ConfigTransport
     {
         return match ($node['transport']) {
@@ -58,6 +64,9 @@ class NodeConfigSync
         $results = [];
 
         foreach ($this->db->table('nodes')->where('enabled', 1)->get()->getResultArray() as $node) {
+            if (! self::hasConfigPush($node)) {
+                continue; // MailRunner nodes: Ravenkeep applies the sender rules itself when collecting
+            }
             $update = [];
 
             try {
@@ -87,6 +96,9 @@ class NodeConfigSync
     public function refreshStatus(): void
     {
         foreach ($this->db->table('nodes')->where('enabled', 1)->get()->getResultArray() as $node) {
+            if (! self::hasConfigPush($node)) {
+                continue;
+            }
             try {
                 $update = $this->statusColumns($this->transportFor($node));
             } catch (Throwable $e) {

@@ -4,7 +4,7 @@ use App\Libraries\Senders\SenderRules;
 use CodeIgniter\Test\CIUnitTestCase;
 
 /**
- * Sender matching must be identical to the MX node: both use tests-shared/sender_match_cases.json.
+ * Sender matching test cases: tests-shared/sender_match_cases.json.
  *
  * @internal
  */

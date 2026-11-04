@@ -51,6 +51,7 @@ return [
     'imported'       => 'imported',
     'configStatus'   => 'Configuration',
     'inSync'         => 'current',
+    'configNotManaged' => 'rules applied by Ravenkeep',
     'waiting'        => 'being applied',
     'outdated'       => 'outdated',
     'pushed'         => 'delivered',

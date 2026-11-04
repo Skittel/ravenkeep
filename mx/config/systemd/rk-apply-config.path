@@ -1,9 +1,0 @@
-[Unit]
-Description=Ravenkeep: watch for config bundles from the web app
-
-[Path]
-PathChanged=/var/lib/ravenkeep/config-incoming/manifest.json
-Unit=rk-apply-config.service
-
-[Install]
-WantedBy=paths.target

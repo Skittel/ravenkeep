@@ -4,8 +4,11 @@ namespace App\Commands;
 
 use App\Libraries\Collector\Collector;
 use App\Libraries\Collector\LocalSpoolTransport;
+use App\Libraries\Collector\MailrunnerSpoolTransport;
+use App\Libraries\Mailrunner\MailrunnerClient;
 use App\Libraries\Nodes\NodeConfigSync;
 use App\Libraries\Rules\RuleRunner;
+use App\Libraries\Senders\SenderRuleService;
 use CodeIgniter\CLI\BaseCommand;
 use CodeIgniter\CLI\CLI;
 use Config\Database;
@@ -14,7 +17,7 @@ use Throwable;
 /**
  * php spark ravenkeep:collect
  *
- * Imports the spool of every enabled node. Run regularly (systemd timer) as the web server user.
+ * Imports the spool of every enabled node (local spool or MailRunner receive node). Run regularly (systemd timer) as the web server user.
  */
 class Collect extends BaseCommand
 {
@@ -35,7 +38,8 @@ class Collect extends BaseCommand
 
             try {
                 $transport = match ($node['transport']) {
-                    'local' => new LocalSpoolTransport($node['spool_path']),
+                    'local'      => new LocalSpoolTransport($node['spool_path']),
+                    'mailrunner' => new MailrunnerSpoolTransport(MailrunnerClient::fromConfig(), (new SenderRuleService($db))->rules()),
                     default => throw new \RuntimeException("Transport '{$node['transport']}' not implemented yet"),
                 };
                 $result = $collector->collectNode($node, $transport);

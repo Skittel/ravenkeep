@@ -4,7 +4,7 @@ namespace App\Libraries\Nodes;
 
 /**
  * Delivers config bundles to an MX node and reads back what the node applied (decision E-009).
- * The node validates and installs the bundle itself (mx/bin/rk-apply-config); the web app
+ * The node validates and installs the bundle itself (former local MX: rk-apply-config, removed in 0.3.1); the web app
  * never needs root access on a node.
  */
 interface ConfigTransport

@@ -1,11 +1,10 @@
 [Unit]
-Description=Ravenkeep collector: import spool entries from MX nodes
+Description=Ravenkeep collector: import messages from the MailRunner receive node
 After=mariadb.service
 
 [Service]
 Type=oneshot
 User=www-data
 Group=www-data
-SupplementaryGroups=ravenkeep
 ExecStart=/usr/bin/php /srv/ravenkeep/webapp/spark ravenkeep:collect
 Nice=5
