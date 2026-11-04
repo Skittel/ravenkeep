@@ -117,6 +117,17 @@ final class InventoryPagesTest extends CIUnitTestCase
         }
     }
 
+    public function testTagsPageListsAutomaticTagsOfAllCustomers(): void
+    {
+        (new Inventory($this->db, new RuleRunner($this->db)))->createCustomer('skit', 'SKIT', null);
+
+        $result = $this->as('ro')->get('tags');
+        $result->assertOK();
+        foreach (['kunde - acme', 'kunde - skit', 'standort - acme.branch2', 'geraet - acme.nas05'] as $text) {
+            $result->assertSee($text);
+        }
+    }
+
     public function testReadOnlyCannotChangeInventory(): void
     {
         $this->as('ro')->post('customers', ['code' => 'x', 'name' => 'X'])->assertStatus(403);

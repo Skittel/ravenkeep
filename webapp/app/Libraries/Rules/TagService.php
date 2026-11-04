@@ -38,6 +38,16 @@ class TagService
             $tag['devices']  = (int) $tag['devices'];
             $tag['rules']    = (int) ($ruleUse[$tag['name']] ?? 0);
         }
+        unset($tag);
+
+        // automatic tags of customers, locations and devices, also while nothing uses them yet
+        $known = array_column($tags, 'name');
+        foreach ((new Inventory($this->db, $this->runner))->automaticTagNames() as $name) {
+            if (! in_array($name, $known, true)) {
+                $tags[] = ['id' => 0, 'name' => $name, 'type' => TagName::type($name), 'reserved' => true, 'messages' => 0, 'devices' => 0, 'rules' => 0];
+            }
+        }
+        usort($tags, static fn (array $a, array $b): int => strcmp($a['name'], $b['name']));
 
         return $tags;
     }
