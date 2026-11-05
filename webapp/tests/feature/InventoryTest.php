@@ -117,6 +117,21 @@ final class InventoryTest extends CIUnitTestCase
 
         // Changing the device tags re-evaluates its messages
         $this->inventory->updateDevice($device, 'NAS05', null, ['typ:storage']);
+        // moving to another location of the customer: the location tag follows, the path stays
+        $hall = $this->inventory->createLocation($this->customer, 'hall3', 'Hall 3', null);
+        $this->inventory->updateDevice($device, 'NAS05', null, ['typ:storage'], null, $hall);
+        $this->assertContains('standort:acme.hall3', $this->inventory->deviceTags($device));
+        $this->assertNotContains('standort:acme.branch2', $this->inventory->deviceTags($device));
+        $this->assertSame('acme.nas05', $this->db->table('devices')->where('id', $device)->get()->getRow()->path);
+        $other = $this->inventory->createCustomer('globex', 'Globex', null);
+        $foreign = $this->inventory->createLocation($other, 'x1', 'X', null);
+        try {
+            $this->inventory->updateDevice($device, 'NAS05', null, [], null, $foreign);
+            $this->fail('moved to a location of another customer');
+        } catch (InvalidArgumentException $e) {
+            $this->assertSame('location', $e->getMessage());
+        }
+        $this->inventory->updateDevice($device, 'NAS05', null, ['typ:storage'], null, $this->location);
         $this->runner->processBatch();
         $this->assertArrayNotHasKey('status:error', $this->tagsOf($error));
         $this->assertArrayHasKey('typ:storage', $this->tagsOf($error));

@@ -126,6 +126,8 @@ $autoTag = static fn (string $t) => in_array(explode(':', $t, 2)[0], ['kunde', '
                         <tr class="editing"><td colspan="6">
                             <?= form_open('customers/' . $cid . '/devices/' . $id, ['class' => 'rule-form']) ?>
                                 <label><?= lang('Customers.name') ?><input type="text" name="name" required maxlength="128" value="<?= esc($d['name'], 'attr') ?>"></label>
+                                <label title="<?= esc(lang('Customers.moveHint'), 'attr') ?>"><?= lang('Customers.location') ?><select name="location_id"><option value="">–</option>
+                                    <?php foreach ($locations as $l): ?><option value="<?= (int) $l['id'] ?>" <?= (int) $l['id'] === (int) $d['location_id'] ? 'selected' : '' ?>><?= esc($l['name']) ?></option><?php endforeach ?></select></label>
                                 <label><?= lang('Customers.extraTags') ?><input type="text" name="tags" autocomplete="off" value="<?= esc(implode(', ', $own), 'attr') ?>"<?= rk_tag_picker_attrs('multi', ['kunde', 'standort', 'geraet']) ?>></label>
                                 <label><?= lang('Customers.profile') ?><?= $profileSelect($d['timeout_profile_id'] !== null ? (int) $d['timeout_profile_id'] : null) ?></label>
                                 <label><?= lang('Senders.note') ?><input type="text" name="note" maxlength="255" value="<?= esc($d['note'] ?? '', 'attr') ?>"></label>

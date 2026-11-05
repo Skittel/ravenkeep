@@ -108,4 +108,5 @@ return [
     'invalid_type_system' => 'Automatische Typen (kunde, standort, geraet, source, meldung) lassen sich nicht ändern.',
     'invalid_type_in_use' => 'Der Typ wird noch verwendet (Tags oder Regeln).',
     'invalid_type' => 'Unbekannter Typ.',
+    'moveHint' => 'Umzug: Kürzel, Überwachung und Verlauf bleiben, der Standort-Tag geht mit (auch für vorhandene Mails).',
 ];

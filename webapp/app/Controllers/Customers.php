@@ -105,7 +105,7 @@ class Customers extends BaseController
     public function updateDevice(int $customerId, int $id): RedirectResponse
     {
         return $this->change(fn (Inventory $i) => $i->updateDevice($id, (string) $this->post('name'), $this->note(), $this->tags(),
-            ((int) $this->post('timeout_profile_id')) ?: null), static fn () => site_url("customers/{$customerId}"));
+            ((int) $this->post('timeout_profile_id')) ?: null, ((int) $this->post('location_id')) ?: null), static fn () => site_url("customers/{$customerId}"));
     }
 
     public function deleteDevice(int $customerId, int $id): RedirectResponse

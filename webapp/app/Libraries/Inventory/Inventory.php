@@ -141,14 +141,26 @@ class Inventory
         return $id;
     }
 
-    /** @param list<string> $tags */
-    public function updateDevice(int $id, string $name, ?string $note, array $tags, ?int $timeoutProfileId = null): void
+    /**
+     * @param list<string>   $tags
+     * @param int|false|null $locationId new location of the same customer (the device moves: path, monitoring
+     *                                   and history stay, the location tag follows), null = none, false = unchanged
+     */
+    public function updateDevice(int $id, string $name, ?string $note, array $tags, ?int $timeoutProfileId = null, int|false|null $locationId = false): void
     {
         $tagNames = self::validTags($tags);
         (new TagTypes($this->db))->assertKnown($tagNames);
+        $data = ['name' => self::validName($name), 'note' => $note, 'timeout_profile_id' => $this->validProfile($timeoutProfileId), 'updated_at' => gmdate('Y-m-d H:i:s')];
+        if ($locationId !== false) {
+            $device = $this->db->table('devices')->select('customer_id')->where('id', $id)->get()->getRowArray() ?? throw new InvalidArgumentException('device');
+            if ($locationId !== null
+                && $this->db->table('locations')->where(['id' => $locationId, 'customer_id' => $device['customer_id']])->countAllResults() === 0) {
+                throw new InvalidArgumentException('location');
+            }
+            $data['location_id'] = $locationId;
+        }
         $this->db->transStart();
-        $this->db->table('devices')->where('id', $id)->update(['name' => self::validName($name), 'note' => $note,
-            'timeout_profile_id' => $this->validProfile($timeoutProfileId), 'updated_at' => gmdate('Y-m-d H:i:s')]);
+        $this->db->table('devices')->where('id', $id)->update($data);
         $this->setDeviceTags($id, $tagNames);
         $this->db->transComplete();
         $this->runner->bumpVersion();

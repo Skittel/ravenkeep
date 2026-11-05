@@ -108,4 +108,5 @@ return [
     'invalid_type_system' => 'Automatic types (kunde, standort, geraet, source, meldung) cannot be changed.',
     'invalid_type_in_use' => 'The type is still in use (tags or rules).',
     'invalid_type' => 'Unknown type.',
+    'moveHint' => 'Moving: code, monitoring and history stay, the location tag follows (also for stored messages).',
 ];
