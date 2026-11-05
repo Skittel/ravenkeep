@@ -50,6 +50,7 @@ $suggestedTags = array_values(array_unique([...$own, ...$suggest['tags']]));
                 <tr><th><?= lang('Devices.server') ?></th><td><code class="select"><?= esc($access['host']) ?></code></td></tr>
                 <tr><th><?= lang('Devices.port') ?></th><td><code>587</code> (STARTTLS) <?= lang('Devices.or') ?> <code>465</code> (SSL/TLS)<?= lang('Devices.port25') ?></td></tr>
                 <tr><th><?= lang('Devices.username') ?></th><td><code class="select"><?= esc($access['username']) ?></code></td></tr>
+                <tr><th><?= lang('Devices.recipient') ?></th><td><code class="select">status@<?= esc(explode('@', $access['username'])[1] ?? '') ?></code> <span class="muted"><?= lang('Devices.recipientHint') ?></span></td></tr>
                 <tr><th><?= lang('Devices.password') ?></th><td>
                     <?php if ($access['password'] === null): ?>
                         <span class="check-none"><?= lang('Devices.passwordNotStored') ?></span>

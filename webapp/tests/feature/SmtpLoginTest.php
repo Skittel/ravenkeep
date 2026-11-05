@@ -136,6 +136,7 @@ final class SmtpLoginTest extends CIUnitTestCase
             $page->assertOK();
             $this->assertStringContainsString('type="password" id="access-password" value="Sup3r-Geheim-Kennwort"', $page->getBody());
             $this->assertStringContainsString('data-reveal="access-password"', $page->getBody());
+            $this->assertStringContainsString('status@customer.example.org', $page->getBody());
             $this->assertStringContainsString('no-store', $page->response()->getHeaderLine('Cache-Control'));
         } finally {
             putenv('RAVENKEEP_SECRET_KEY_FILE');

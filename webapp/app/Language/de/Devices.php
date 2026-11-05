@@ -20,7 +20,7 @@ return [
     'sender'               => 'Absender',
     'senderHint'           => '(empfohlen; andere Absender sind erlaubt)',
     'recipient'            => 'Empfänger',
-    'recipientHint'        => '(beliebige Adresse der Domain möglich)',
+    'recipientHint'        => '(empfohlen; jede Adresse wird angenommen und nicht ausgewertet)',
     'lastMail'             => 'Letzte Mail',
     'never'                => 'noch keine',
     'passwordSet'          => 'Kennwort gesetzt',
