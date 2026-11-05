@@ -113,12 +113,13 @@ class MailrunnerSpoolTransport implements SpoolTransport
             'source'       => ['mailrunner_role' => $m['role'] ?? null, 'sha256' => $m['sha256'] ?? null],
         ];
 
-        // delivered with an SMTP login of the project (T-21): the login identifies the sender,
-        // no sender rules; the node reports the login as credential_id
+        // delivered with an SMTP login of the project (T-21): the login identifies the sender, no
+        // sender rules. The node reports auth.username (0.1.35+) and credential_id; the stored
+        // mapping wins, so a renamed login keeps its device and tags.
         if (($m['received_via'] ?? '') === 'auth') {
             $credential            = (string) ($m['auth']['credential_id'] ?? '');
             $meta['mode']          = 'auth';
-            $meta['sasl_username'] = $this->credentials[$credential] ?? $credential;
+            $meta['sasl_username'] = $this->credentials[$credential] ?? (strtolower((string) ($m['auth']['username'] ?? '')) ?: $credential);
             $meta['status']        = 'accepted';
             $meta['auth_verdict']  = 'accepted';
             $meta['reasons']       = [];

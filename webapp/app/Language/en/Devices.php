@@ -61,7 +61,7 @@ return [
     'captureNoScheme' => 'The user name does not follow the address scheme – choose device and tags above by hand.',
     'captureMissing' => 'Create the missing entries, then the suggestion appears.',
     'captureApply' => 'Apply suggestion',
-    'serverHint' => 'Logins live on the MailRunner node {0}: MailRunner generates the password (shown once), Ravenkeep keeps mapping, device and tags (T-21, E-024). Any recipient, e.g. status@customer.ravenkeep.cloud.',
+    'serverHint' => 'Logins live on the MailRunner node {0}. Ravenkeep generates the password, hands it to MailRunner and shows it only once – it cannot be read back anywhere. Ravenkeep keeps mapping, device and tags (T-21, E-024). After login MailRunner accepts every message, whatever sender or recipient – e.g. status@customer.ravenkeep.cloud.',
     'port25' => ' – port 25 only after STARTTLS',
     'allowedNetworks' => 'Allowed networks',
     'allowedNetworksHint' => 'optional, e.g. 198.51.100.0/24',

@@ -104,21 +104,20 @@ class MailrunnerClient
     }
 
     /**
-     * Create an SMTP login. The node generates the password and returns it only here.
+     * Create an SMTP login with the password given by Ravenkeep (node 0.1.35+: never returned, so the
+     * same login can be set up on several nodes).
      *
      * @param list<string> $allowedNetworks
      *
-     * @return array{0: array<string, mixed>, 1: string} [credential, password]
+     * @return array<string, mixed> credential
      */
-    public function createCredential(string $username, string $label, bool $plaintextPort25 = false, array $allowedNetworks = []): array
+    public function createCredential(string $username, string $password, string $label, bool $plaintextPort25 = false, array $allowedNetworks = []): array
     {
-        $body = ['username' => $username, 'label' => $label, 'plaintext_port25' => $plaintextPort25];
+        $body = ['username' => $username, 'password' => $password, 'label' => $label, 'plaintext_port25' => $plaintextPort25];
         if ($allowedNetworks !== []) {
             $body['allowed_networks'] = $allowedNetworks;
         }
-        $result = $this->json('POST', '/v1/smtp-credentials', $body);
-
-        return [$result['data'] ?? [], (string) ($result['password'] ?? '')];
+        return $this->json('POST', '/v1/smtp-credentials', $body)['data'] ?? [];
     }
 
     /** @return list<array<string, mixed>> */
@@ -133,12 +132,11 @@ class MailrunnerClient
         $this->json('PATCH', '/v1/smtp-credentials/' . rawurlencode($credentialId), $fields);
     }
 
-    /** New password; the old one stays valid for $graceSeconds. Returns the new password. */
-    public function rotateCredential(string $credentialId, int $graceSeconds = 0): string
+    /** Set a new password (given by Ravenkeep); the old one stays valid for $graceSeconds. */
+    public function rotateCredential(string $credentialId, string $password, int $graceSeconds = 0): void
     {
-        $result = $this->json('POST', '/v1/smtp-credentials/' . rawurlencode($credentialId) . '/rotate', ['grace_seconds' => max(0, min(604800, $graceSeconds))]);
-
-        return (string) ($result['password'] ?? '');
+        $this->json('POST', '/v1/smtp-credentials/' . rawurlencode($credentialId) . '/rotate',
+            ['password' => $password, 'grace_seconds' => max(0, min(604800, $graceSeconds))]);
     }
 
     /** Delete (block) a login; an unknown one counts as deleted. */

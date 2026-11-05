@@ -8,9 +8,9 @@ use CodeIgniter\Database\BaseConnection;
 use InvalidArgumentException;
 
 /**
- * SMTP logins on the MailRunner node (T-21, E-024). The node generates passwords (shown once,
- * never stored by Ravenkeep) and reports the login of a message as credential_id; Ravenkeep keeps
- * credential_id, user name, device and fixed tags. Every change goes to the node first, so the
+ * SMTP logins on the MailRunner node (T-21, E-024). Ravenkeep generates the password, hands it to
+ * the node (which never returns it) and shows it once; it is not stored. The node reports the login of
+ * a message as auth.username / credential_id; Ravenkeep keeps credential_id, user name, device and tags. Every change goes to the node first, so the
  * local list never claims a login the node does not have.
  */
 class SmtpCredentials
@@ -34,7 +34,8 @@ class SmtpCredentials
             throw new InvalidArgumentException('device');
         }
         $networks = self::networks($networks);
-        [$credential, $password] = $this->call(fn () => $this->client->createCredential($username, $note ?? $username, $plaintextPort25, $networks));
+        $password   = NodeSettings::generatePassword();
+        $credential = $this->call(fn () => $this->client->createCredential($username, $password, $note ?? $username, $plaintextPort25, $networks));
         $now = gmdate('Y-m-d H:i:s');
         $this->db->table('smtp_identities')->insert([
             'credential_id' => (string) $credential['credential_id'], 'device_id' => $deviceId, 'username' => $username, 'password_hash' => null,
@@ -55,7 +56,8 @@ class SmtpCredentials
             throw new InvalidArgumentException('registered');
         }
         $networks = self::networks(explode(',', (string) $row['allowed_networks']));
-        [$credential, $password] = $this->call(fn () => $this->client->createCredential($row['username'], $row['note'] ?? $row['username'], (bool) $row['plaintext_port25'], $networks));
+        $password   = NodeSettings::generatePassword();
+        $credential = $this->call(fn () => $this->client->createCredential($row['username'], $password, $row['note'] ?? $row['username'], (bool) $row['plaintext_port25'], $networks));
         if (! $row['enabled']) {
             $this->client->updateCredential((string) $credential['credential_id'], ['enabled' => false]);
         }
@@ -70,7 +72,8 @@ class SmtpCredentials
     public function rotate(int $id, int $graceSeconds): string
     {
         $row      = $this->registered($id);
-        $password = $this->call(fn () => $this->client->rotateCredential($row['credential_id'], $graceSeconds));
+        $password = NodeSettings::generatePassword();
+        $this->call(fn () => $this->client->rotateCredential($row['credential_id'], $password, $graceSeconds));
         $now      = gmdate('Y-m-d H:i:s');
         $this->db->table('smtp_identities')->where('id', $id)->update(['password_set_at' => $now, 'updated_at' => $now]);
 

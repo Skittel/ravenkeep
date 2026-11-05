@@ -111,11 +111,11 @@ final class MailrunnerTransportTest extends CIUnitTestCase
     {
         $known   = $this->message('mrm_auth1', [], 'whatever@nowhere.example');
         $unknown = $this->message('mrm_auth2');
-        foreach ([[&$known, 'mrc_known'], [&$unknown, 'mrc_other']] as [&$m, $credential]) {
-            $m['message']['received_via'] = 'auth';
-            $m['message']['auth']         = ['credential_id' => $credential, 'service' => 'submission'];
-        }
-        unset($m);
+        $known['message']['received_via']   = 'auth';
+        $known['message']['auth']           = ['credential_id' => 'mrc_known', 'username' => 'renamed@customer.example', 'service' => 'submission'];
+        $unknown['message']['received_via'] = 'auth';
+        $unknown['message']['auth']         = ['credential_id' => 'mrc_other', 'username' => 'Other@Customer.example', 'service' => 'smtps'];
+        unset($unknown['message']['debug']); // analysis failed: accepted anyway
         $client = new FakeMailrunnerClient(['mrm_auth1' => $known, 'mrm_auth2' => $unknown]);
 
         // no sender rule at all: a login does not need one
@@ -123,7 +123,8 @@ final class MailrunnerTransportTest extends CIUnitTestCase
 
         $this->seeInDatabase('messages', ['spool_id' => 'mrm_auth1', 'mode' => 'auth', 'status' => 'accepted',
             'sasl_username' => 'pm10_ipmi_hq1_acme@customer.example', 'list_match_pattern' => null]);
-        $this->seeInDatabase('messages', ['spool_id' => 'mrm_auth2', 'mode' => 'auth', 'sasl_username' => 'mrc_other']);
+        // not known to Ravenkeep: the user name reported by the node
+        $this->seeInDatabase('messages', ['spool_id' => 'mrm_auth2', 'mode' => 'auth', 'status' => 'accepted', 'sasl_username' => 'other@customer.example']);
     }
 
     public function testImportsMessageArchivesRawAndAcknowledges(): void

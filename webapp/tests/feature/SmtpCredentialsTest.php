@@ -33,10 +33,15 @@ final class FakeCredentialNode extends MailrunnerClient
                     return [409, '{"error":{"code":"USERNAME_EXISTS","message":"exists"}}'];
                 }
             }
+            if (strlen($body['password'] ?? '') < 16) {
+                return [400, '{"error":{"code":"INVALID_REQUEST","message":"password"}}'];
+            }
             $id                     = 'mrc_' . $this->next++;
             $this->credentials[$id] = ['credential_id' => $id, 'enabled' => true] + $body;
+            $data                   = $this->credentials[$id];
+            unset($data['password']); // a given password is never returned
 
-            return [201, json_encode(['data' => $this->credentials[$id], 'password' => 'pw-' . $id])];
+            return [201, json_encode(['data' => $data])];
         }
         if (preg_match('#^/v1/smtp-credentials/(mrc_\d+)(/rotate)?$#', $path, $m)) {
             if (! isset($this->credentials[$m[1]])) {
@@ -48,7 +53,10 @@ final class FakeCredentialNode extends MailrunnerClient
                 return [200, json_encode(['data' => $this->credentials[$m[1]]])];
             }
             if ($method === 'POST' && ($m[2] ?? '') === '/rotate') {
-                return [200, json_encode(['data' => $this->credentials[$m[1]], 'password' => 'new-' . $body['grace_seconds']])];
+                $this->credentials[$m[1]]['password'] = $body['password'];
+                $this->credentials[$m[1]]['grace']    = $body['grace_seconds'];
+
+                return [200, json_encode(['data' => ['credential_id' => $m[1]]])];
             }
             if ($method === 'DELETE') {
                 unset($this->credentials[$m[1]]);
@@ -89,13 +97,16 @@ final class SmtpCredentialsTest extends CIUnitTestCase
     public function testCreateRotateToggleDelete(): void
     {
         [$id, $password, $username] = $this->credentials->create('pm10_ipmi_hq1_acme', 'customer.example.org', 'IPMI', null, false, ['198.51.100.0/24']);
-        $this->assertSame('pw-mrc_1', $password);
+        $this->assertSame(24, strlen($password));
+        $this->assertSame($password, $this->node->credentials['mrc_1']['password']); // Ravenkeep's password went to the node
         $this->assertSame('pm10_ipmi_hq1_acme@customer.example.org', $username);
         $this->seeInDatabase('smtp_identities', ['id' => $id, 'credential_id' => 'mrc_1', 'password_hash' => null, 'allowed_networks' => '198.51.100.0/24']);
         $this->assertSame(['198.51.100.0/24'], $this->node->credentials['mrc_1']['allowed_networks']);
         $this->assertSame(['mrc_1' => $username], SmtpCredentials::map($this->db));
 
-        $this->assertSame('new-86400', $this->credentials->rotate($id, 86400));
+        $new = $this->credentials->rotate($id, 86400);
+        $this->assertNotSame($password, $new);
+        $this->assertSame([$new, 86400], [$this->node->credentials['mrc_1']['password'], $this->node->credentials['mrc_1']['grace']]);
 
         $this->credentials->toggle($id);
         $this->assertFalse($this->node->credentials['mrc_1']['enabled']);
@@ -122,7 +133,8 @@ final class SmtpCredentialsTest extends CIUnitTestCase
 
         // a login from before MailRunner is created on the node with the same user name
         [$legacy] = (new NodeSettings($this->db))->createIdentity('old.device', 'customer.example.org', null);
-        $this->assertSame('pw-mrc_1', $this->credentials->register($legacy));
+        $password = $this->credentials->register($legacy);
+        $this->assertSame($password, $this->node->credentials['mrc_1']['password']);
         $this->seeInDatabase('smtp_identities', ['id' => $legacy, 'credential_id' => 'mrc_1', 'password_hash' => null]);
     }
 }

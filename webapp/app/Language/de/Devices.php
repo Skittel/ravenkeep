@@ -61,7 +61,7 @@ return [
     'captureNoScheme' => 'Der Benutzername folgt nicht dem Adressschema – Gerät und Tags bitte oben von Hand wählen.',
     'captureMissing' => 'Fehlende Einträge anlegen, danach erscheint der Vorschlag.',
     'captureApply' => 'Vorschlag übernehmen',
-    'serverHint' => 'Die Zugänge liegen auf der Mailrunner-Node {0}: Mailrunner erzeugt das Kennwort (nur einmal angezeigt), Ravenkeep speichert Zuordnung, Gerät und Tags (T-21, E-024). Empfänger beliebig, z. B. status@customer.ravenkeep.cloud.',
+    'serverHint' => 'Die Zugänge liegen auf der Mailrunner-Node {0}. Ravenkeep erzeugt das Kennwort, übergibt es an Mailrunner und zeigt es nur einmal an – gespeichert wird es nirgends abrufbar. Ravenkeep speichert Zuordnung, Gerät und Tags (T-21, E-024). Nach der Anmeldung nimmt Mailrunner jede Mail an, egal welcher Absender oder Empfänger – z. B. status@customer.ravenkeep.cloud.',
     'port25' => ' – Port 25 nur nach STARTTLS',
     'allowedNetworks' => 'Erlaubte Netze',
     'allowedNetworksHint' => 'optional, z. B. 198.51.100.0/24',
