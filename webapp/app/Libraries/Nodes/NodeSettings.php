@@ -5,6 +5,7 @@ namespace App\Libraries\Nodes;
 use App\Libraries\Senders\SenderRules;
 use App\Libraries\Inventory\Inventory;
 use App\Libraries\Rules\RuleRunner;
+use App\Libraries\Rules\TagName;
 use App\Libraries\Rules\TagTypes;
 use CodeIgniter\Database\BaseConnection;
 use InvalidArgumentException;
@@ -68,7 +69,8 @@ class NodeSettings
 
     /**
      * Device and fixed tags of a login (E-024). The device supplies customer, location and device
-     * tags; the login adds its own (e.g. source:ipmi). Reserved types and unknown tag types are refused.
+     * tags; the login adds its own (e.g. source:ipmi). All tag types are allowed, also kunde/standort/
+     * geraet, so a login can be defined without a device (Stefan, 05.11.2026); unknown types are refused.
      *
      * @param list<string> $tags
      */
@@ -80,7 +82,13 @@ class NodeSettings
         if ($deviceId !== null && $this->db->table('devices')->where('id', $deviceId)->countAllResults() === 0) {
             throw new InvalidArgumentException('device');
         }
-        $names = Inventory::validTags($tags);
+        $names = [];
+        foreach ($tags as $tag) {
+            if (trim((string) $tag) !== '') {
+                $names[TagName::normalize((string) $tag)] = true;
+            }
+        }
+        $names = array_keys($names);
         (new TagTypes($this->db))->assertKnown($names);
         $runner = new RuleRunner($this->db);
         $this->db->transStart();

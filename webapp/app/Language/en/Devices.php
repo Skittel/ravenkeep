@@ -54,7 +54,7 @@ return [
     'deviceLater' => '– assign device later –',
     'noDevice' => '– no device –',
     'editTags' => 'Device and tags',
-    'editHint' => 'One login per component (e.g. IPMI, Proxmox, PBS of a server). Customer, location and device come from the linked device; the login carries its own fixed tags (e.g. source:ipmi). Nothing is read from addresses when messages arrive (E-024).',
+    'editHint' => 'One login per component (e.g. IPMI, Proxmox, PBS of a server). With a device, customer, location and device come from the inventory; a login can also carry all tags itself without a device (e.g. kunde:…, source:…). Nothing is read from addresses when messages arrive (E-024).',
     'fromDevice' => 'From the device:',
     'captureTitle' => 'Capture tags',
     'captureHint' => 'Suggestion from the user name following the address scheme device_source_location_customer – applied once, afterwards the stored values count.',

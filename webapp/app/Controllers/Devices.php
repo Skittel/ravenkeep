@@ -83,7 +83,8 @@ class Devices extends BaseController
             'suggest'    => $suggest + ['device_id' => $deviceId],
             'devices'    => $this->devices(),
             'deviceTags' => $identity['device_id'] ? (new Inventory($db, $runner))->deviceTags((int) $identity['device_id']) : [],
-            'tagNames'   => array_column($db->table('tags')->select('name')->orderBy('name')->get()->getResultArray(), 'name'),
+            // all tags, including those of customers, locations and devices without any message yet
+            'tagNames'   => $this->allTagNames(),
         ]);
     }
 
@@ -122,6 +123,17 @@ class Devices extends BaseController
         }
 
         return redirect()->to(site_url('devices/' . $id))->with('success', lang('Addresses.created'));
+    }
+
+    /** @return list<string> */
+    private function allTagNames(): array
+    {
+        $db    = db_connect();
+        $names = array_unique([...array_column($db->table('tags')->select('name')->get()->getResultArray(), 'name'),
+            ...(new Inventory($db, new RuleRunner($db)))->automaticTagNames()]);
+        sort($names);
+
+        return array_values($names);
     }
 
     /** @return list<array> all devices for the selection, by customer */

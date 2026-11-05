@@ -100,7 +100,12 @@ final class SmtpLoginTest extends CIUnitTestCase
     public function testValidationAndPages(): void
     {
         [$id] = $this->settings->createIdentity('pm10_ipmi_hq1_acme', 'customer.example.org', null);
-        foreach ([['reserved_tag', ['kunde:acme']], ['tag_type', ['typo:x']]] as [$error, $tags]) {
+        // all types allowed, also kunde/standort/geraet: a login without a device
+        $this->settings->setIdentity($id, null, ['kunde:acme', 'standort:acme.hq1', 'source:ipmi'], null);
+        $msg = $this->message('pm10_ipmi_hq1_acme@customer.example.org');
+        $this->runner->processBatch();
+        $this->assertSame(['kunde:acme', 'source:ipmi', 'standort:acme.hq1'], $this->tags($msg));
+        foreach ([['tag_type', ['typo:x']]] as [$error, $tags]) {
             try {
                 $this->settings->setIdentity($id, null, $tags, null);
                 $this->fail($error);
@@ -111,7 +116,7 @@ final class SmtpLoginTest extends CIUnitTestCase
         $user = ['user' => ['oid' => 'o', 'name' => 'Test', 'username' => 't@example.org', 'role' => 'ro', 'login_at' => time()]];
         $page = $this->withSession($user)->get('devices/' . $id);
         $page->assertOK();
-        $page->assertSee('Quelle ipmi unbekannt');
+        $page->assertSee('acme.pm10'); // source:ipmi exists now: the suggestion names the device
         $this->withSession($user)->get('devices')->assertSee('pm10_ipmi_hq1_acme@customer.example.org');
         $this->withSession($user)->post('devices/' . $id, ['tags' => 'source:x'])->assertStatus(403);
     }

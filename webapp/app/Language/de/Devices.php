@@ -54,7 +54,7 @@ return [
     'deviceLater' => '– Gerät später zuordnen –',
     'noDevice' => '– kein Gerät –',
     'editTags' => 'Gerät und Tags',
-    'editHint' => 'Ein Zugang je Komponente (z. B. IPMI, Proxmox, PBS eines Servers). Kunde, Standort und Gerät kommen vom zugeordneten Gerät, der Zugang trägt eigene feste Tags (z. B. source:ipmi). Beim Eingang wird nichts aus Adressen gelesen (E-024).',
+    'editHint' => 'Ein Zugang je Komponente (z. B. IPMI, Proxmox, PBS eines Servers). Mit Gerät kommen Kunde, Standort und Gerät vom Inventar; der Zugang kann aber auch ohne Gerät alle Tags selbst tragen (z. B. kunde:…, source:…). Beim Eingang wird nichts aus Adressen gelesen (E-024).',
     'fromDevice' => 'Vom Gerät:',
     'captureTitle' => 'Tags erfassen',
     'captureHint' => 'Vorschlag aus dem Benutzernamen nach dem Adressschema gerät_quelle_standort_kunde – nur einmalig beim Übernehmen, danach gilt das Gespeicherte.',
