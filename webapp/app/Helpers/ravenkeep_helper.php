@@ -82,8 +82,12 @@ if (! function_exists('rk_tag_data')) {
     {
         $data = array_map(static fn (string $n): array => ['n' => $n, 'l' => rk_tag_label($n), 'c' => rk_tag_class($n)], $names);
 
-        return '<script type="application/json" id="rk-tags">'
-            . json_encode($data, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) . '</script>';
+        $flags = JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT;
+        // new tags only with a known type (E-023)
+        $types = (new App\Libraries\Rules\TagTypes(db_connect()))->names();
+
+        return '<script type="application/json" id="rk-tags">' . json_encode($data, $flags) . '</script>'
+            . '<script type="application/json" id="rk-tag-types">' . json_encode($types, $flags) . '</script>';
     }
 }
 
@@ -96,7 +100,8 @@ if (! function_exists('rk_tag_picker_attrs')) {
             . ' data-tag-new="' . esc(lang('Rules.pickerNew'), 'attr') . '"'
             . ' data-tag-none="' . esc(lang('Rules.pickerNone'), 'attr') . '"'
             . ' data-tag-placeholder="' . esc(lang('Rules.pickerPlaceholder'), 'attr') . '"'
-            . ' data-tag-remove="' . esc(lang('Rules.removeTag'), 'attr') . '"';
+            . ' data-tag-remove="' . esc(lang('Rules.removeTag'), 'attr') . '"'
+            . ' data-tag-unknown-type="' . esc(lang('Rules.pickerUnknownType'), 'attr') . '"';
     }
 }
 

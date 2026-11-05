@@ -63,7 +63,7 @@ class Rules extends BaseController
             $id = $this->repository()->save($id, (string) ($post['name'] ?? ''), (string) ($post['match_mode'] ?? 'all'),
                 ! empty($post['stop']), ! empty($post['enabled']), $conditions, $tags);
         } catch (InvalidArgumentException $e) {
-            return redirect()->back()->withInput()->with('error', lang('Rules.invalid_' . (in_array($e->getMessage(), ['name', 'conditions', 'tags'], true) ? $e->getMessage() : 'tags')));
+            return redirect()->back()->withInput()->with('error', lang('Rules.invalid_' . (in_array($e->getMessage(), ['name', 'conditions', 'tags', 'tag_type'], true) ? $e->getMessage() : 'tags')));
         }
         $preview = $this->repository()->preview($this->repository()->find($id));
         session()->setFlashdata('success', lang('Rules.saved', [$preview['matched'], $preview['sample']]));

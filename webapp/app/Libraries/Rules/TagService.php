@@ -56,7 +56,8 @@ class TagService
     public function create(string $name): int
     {
         $name = $this->assertEditable(TagName::normalize($name));
-        $id   = $this->runner->tagId($name);
+        (new TagTypes($this->db))->assertKnown([$name]);
+        $id = $this->runner->tagId($name);
         if (TagName::type($name) === 'source') {
             $this->runner->bumpVersion(); // a new source can resolve recipient addresses (E-019)
         }
@@ -73,6 +74,7 @@ class TagService
         if ($newName === $tag['name']) {
             return;
         }
+        (new TagTypes($this->db))->assertKnown([$newName]);
         $target = $this->db->table('tags')->select('id')->where('name', $newName)->get()->getRowArray();
         $this->db->transStart();
         if ($target !== null) {

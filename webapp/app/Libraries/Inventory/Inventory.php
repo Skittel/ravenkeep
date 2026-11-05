@@ -4,6 +4,7 @@ namespace App\Libraries\Inventory;
 
 use App\Libraries\Rules\RuleRunner;
 use App\Libraries\Rules\TagName;
+use App\Libraries\Rules\TagTypes;
 use CodeIgniter\Database\BaseConnection;
 use InvalidArgumentException;
 
@@ -125,6 +126,7 @@ class Inventory
             throw new InvalidArgumentException('code_exists');
         }
         $tagNames = self::validTags($tags);
+        (new TagTypes($this->db))->assertKnown($tagNames);
 
         $now = gmdate('Y-m-d H:i:s');
         $this->db->transStart();
@@ -143,6 +145,7 @@ class Inventory
     public function updateDevice(int $id, string $name, ?string $note, array $tags, ?int $timeoutProfileId = null): void
     {
         $tagNames = self::validTags($tags);
+        (new TagTypes($this->db))->assertKnown($tagNames);
         $this->db->transStart();
         $this->db->table('devices')->where('id', $id)->update(['name' => self::validName($name), 'note' => $note,
             'timeout_profile_id' => $this->validProfile($timeoutProfileId), 'updated_at' => gmdate('Y-m-d H:i:s')]);

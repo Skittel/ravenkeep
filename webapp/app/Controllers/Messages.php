@@ -5,6 +5,7 @@ namespace App\Controllers;
 use App\Libraries\MessageReader;
 use App\Libraries\Rules\RuleRunner;
 use App\Libraries\Rules\TagName;
+use App\Libraries\Rules\TagTypes;
 use App\Models\MessageModel;
 use CodeIgniter\Exceptions\PageNotFoundException;
 use CodeIgniter\HTTP\RedirectResponse;
@@ -129,6 +130,7 @@ class Messages extends BaseController
             'node'    => $node['name'] ?? '?',
             'reasons' => $reasons,
             'listCheck' => $listCheck,
+            'tagTypes'  => array_values(array_diff((new TagTypes(db_connect()))->names(), ['kunde', 'standort', 'geraet'])),
             'auth'    => json_decode($message['auth_details'] ?? 'null', true),
             'reader'  => $reader,
             'error'   => $error,
@@ -142,14 +144,16 @@ class Messages extends BaseController
         $this->find($id);
 
         try {
-            $name   = TagName::normalize((string) $this->request->getPost('tag'));
+            // type from the list of tag types (E-023) + value
+            $name   = TagName::normalize((string) $this->request->getPost('type') . ':' . (string) $this->request->getPost('value'));
+            (new TagTypes(db_connect()))->assertKnown([$name]);
             $runner = new RuleRunner(db_connect(), config('Ravenkeep')->archivePath);
             $tagId  = $runner->tagId($name);
             db_connect()->query('INSERT INTO message_tags (message_id, tag_id, source) VALUES (?, ?, ?) '
                 . "ON DUPLICATE KEY UPDATE source = 'manual', rule_id = NULL", [$id, $tagId, 'manual']);
             $runner->processMessage($id);
-        } catch (InvalidArgumentException) {
-            session()->setFlashdata('error', lang('Rules.invalid_tag'));
+        } catch (InvalidArgumentException $e) {
+            session()->setFlashdata('error', lang($e->getMessage() === 'tag_type' ? 'Customers.invalid_tag_type' : 'Rules.invalid_tag'));
         }
 
         return redirect()->to(site_url('/') . '?id=' . $id);

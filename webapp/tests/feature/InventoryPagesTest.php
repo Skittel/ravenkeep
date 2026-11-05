@@ -26,11 +26,17 @@ final class InventoryPagesTest extends CIUnitTestCase
     protected function setUp(): void
     {
         parent::setUp();
+        foreach (['typ', 'hersteller', 'status', 'aufgabe', 'sources'] as $type) { // managed tag types (E-023)
+            $this->db->table('tag_types')->insert(['name' => $type]);
+        }
         $inventory      = new Inventory($this->db, new RuleRunner($this->db));
         $this->customer = $inventory->createCustomer('acme', 'ACME GmbH', null);
         $location       = $inventory->createLocation($this->customer, 'branch2', 'Branch 2', null);
         $profile        = $inventory->createProfile('Daily', 24, null);
-        $inventory->createDevice($this->customer, $location, 'nas05', 'NAS05', 'Rack 1', ['typ:nas', 'qnap'], $profile);
+        $device = $inventory->createDevice($this->customer, $location, 'nas05', 'NAS05', 'Rack 1', ['typ:nas'], $profile);
+        // an untyped tag from before E-023 (cannot be created by hand any more)
+        $this->db->table('tags')->insert(['name' => 'qnap', 'created_at' => gmdate('Y-m-d H:i:s')]);
+        $this->db->table('device_tags')->insert(['device_id' => $device, 'tag_id' => $this->db->insertID()]);
         $this->db->table('devices')->update(['created_at' => gmdate('Y-m-d H:i:s', time() - 2 * 86400)]);
     }
 
@@ -94,11 +100,12 @@ final class InventoryPagesTest extends CIUnitTestCase
         $tag  = (int) $this->db->table('tags')->where('name', 'typ:nas')->get()->getRow()->id;
         $form = $this->as('rw')->get('tags?edit=' . $tag);
         $form->assertOK();
-        $form->assertSee('name="name" value="typ:nas"'); // edit field is shown (failed before 0.3.5: string vs int id)
+        $form->assertSee('name="value" value="nas"'); // edit field is shown (failed before 0.3.5: string vs int id)
+        $this->assertStringContainsString('<option value="typ" selected>', $form->getBody());
 
         $security = config('Security');
         preg_match('/name="' . $security->tokenName . '" value="([^"]+)"/', $form->getBody(), $m);
-        $this->as('rw')->post('tags/' . $tag, [$security->tokenName => $m[1], 'name' => 'typ:storage'])->assertRedirectTo(site_url('tags'));
+        $this->as('rw')->post('tags/' . $tag, [$security->tokenName => $m[1], 'type' => 'typ', 'value' => 'storage'])->assertRedirectTo(site_url('tags'));
         $this->seeInDatabase('tags', ['id' => $tag, 'name' => 'typ:storage']);
     }
 

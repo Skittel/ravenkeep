@@ -32,6 +32,9 @@ final class SenderAddressTest extends CIUnitTestCase
     protected function setUp(): void
     {
         parent::setUp();
+        foreach (['typ', 'hersteller', 'status', 'aufgabe', 'sources'] as $type) { // managed tag types (E-023)
+            $this->db->table('tag_types')->insert(['name' => $type]);
+        }
         $this->runner    = new RuleRunner($this->db);
         $this->inventory = new Inventory($this->db, $this->runner);
         $this->service   = new AddressService($this->db, $this->runner);

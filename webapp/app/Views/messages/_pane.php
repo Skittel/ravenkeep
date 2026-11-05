@@ -9,6 +9,7 @@
  * @var App\Libraries\MessageReader|null $reader
  * @var string|null $error
  * @var list<array> $tags
+ * @var list<string> $tagTypes tag types for manual tags (E-023)
  * @var string|null $listCheck check of the matching allow rule (E-021)
  */
 $statusLabels = [
@@ -59,7 +60,8 @@ $html = $reader?->htmlBody();
                     <span class="<?= rk_tag_class($tg['name']) ?>" title="<?= esc(match ($tg['source']) { 'manual' => lang('Rules.manual'), 'device' => lang('Rules.fromDevice'), 'address' => lang('Rules.fromAddress'), 'sender' => lang('Rules.fromSender'), default => lang('Rules.byRule', [$tg['rule_name'] ?? '?']) }, 'attr') ?>"><?= esc(rk_tag_label($tg['name'])) ?><?php if ($tg['source'] === 'manual'): ?><?= form_open('messages/' . $m['id'] . '/tags/' . $tg['id'] . '/delete', ['class' => 'inline tag-remove']) ?><button type="submit" title="<?= esc(lang('Rules.removeTag'), 'attr') ?>">×</button><?= form_close() ?><?php endif ?></span>
                 <?php endforeach ?>
                 <?= form_open('messages/' . $m['id'] . '/tags', ['class' => 'inline tag-add']) ?>
-                    <input type="text" name="tag" maxlength="64" placeholder="<?= esc(lang('Rules.addTag'), 'attr') ?>" required>
+                    <select name="type" required title="<?= esc(lang('Customers.tagType'), 'attr') ?>"><option value=""><?= lang('Customers.chooseType') ?></option><?php foreach ($tagTypes ?? [] as $tt): ?><option value="<?= esc($tt, 'attr') ?>"><?= esc($tt) ?></option><?php endforeach ?></select>
+                    <input type="text" name="value" maxlength="63" placeholder="<?= esc(lang('Rules.addTag'), 'attr') ?>" required>
                 <?= form_close() ?>
                 <?php if ($m['status'] !== 'accepted'): ?><span class="hint"><?= lang('Rules.onlyAccepted') ?></span><?php endif ?>
                 <?php if (! empty($m['address_unknown'])): ?><span class="hint address-hint"><?= lang('Addresses.paneHint') ?>: <?= esc(implode(', ', array_map(static fn ($p) => lang('Addresses.part_' . $p['part'], [$p['value']]), json_decode($m['address_unknown'], true) ?: []))) ?> – <a href="<?= site_url('addresses') ?>"><?= lang('Addresses.paneLink') ?></a></span><?php endif ?>

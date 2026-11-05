@@ -30,6 +30,9 @@ final class InventoryTest extends CIUnitTestCase
     protected function setUp(): void
     {
         parent::setUp();
+        foreach (['typ', 'hersteller', 'status', 'aufgabe', 'sources'] as $type) { // managed tag types (E-023)
+            $this->db->table('tag_types')->insert(['name' => $type]);
+        }
         $this->runner    = new RuleRunner($this->db);
         $this->inventory = new Inventory($this->db, $this->runner);
         $this->customer  = $this->inventory->createCustomer('Acme', 'ACME GmbH', null);
@@ -55,10 +58,10 @@ final class InventoryTest extends CIUnitTestCase
 
     public function testDeviceGetsAutomaticAndAssignedTags(): void
     {
-        $id = $this->inventory->createDevice($this->customer, $this->location, 'NAS05', 'NAS05', null, ['typ:nas', 'QNAP', 'qnap']);
+        $id = $this->inventory->createDevice($this->customer, $this->location, 'NAS05', 'NAS05', null, ['typ:nas', 'Hersteller:QNAP', 'hersteller:qnap']);
 
         $this->seeInDatabase('devices', ['id' => $id, 'path' => 'acme.nas05']);
-        $this->assertSame(['kunde:acme', 'standort:acme.branch2', 'geraet:acme.nas05', 'qnap', 'typ:nas'], $this->inventory->deviceTags($id));
+        $this->assertSame(['kunde:acme', 'standort:acme.branch2', 'geraet:acme.nas05', 'hersteller:qnap', 'typ:nas'], $this->inventory->deviceTags($id));
 
         $noLocation = $this->inventory->createDevice($this->customer, null, 'pbs', 'PBS', null, []);
         $this->assertSame(['kunde:acme', 'geraet:acme.pbs'], $this->inventory->deviceTags($noLocation));

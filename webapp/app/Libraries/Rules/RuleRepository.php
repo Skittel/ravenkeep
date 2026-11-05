@@ -61,6 +61,7 @@ class RuleRepository
         if ($tags === []) {
             throw new InvalidArgumentException('tags');
         }
+        (new TagTypes($this->db))->assertKnown($tags);
 
         $now  = gmdate('Y-m-d H:i:s');
         $data = ['name' => $name, 'match_mode' => $matchMode, 'stop' => (int) $stop, 'enabled' => (int) $enabled, 'updated_at' => $now];

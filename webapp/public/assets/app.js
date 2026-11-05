@@ -18,6 +18,8 @@
     //   single = one tag (rule conditions on tags); only active while the row's field is "tag"
     const tagData = document.getElementById('rk-tags');
     const knownTags = tagData ? JSON.parse(tagData.textContent) : [];
+    const typeData = document.getElementById('rk-tag-types');
+    const knownTypes = typeData ? JSON.parse(typeData.textContent) : null; // null = no restriction
     const tagInfo = function (name) {
         return knownTags.find(function (t) { return t.n === name; }) || { n: name, l: name.replace(':', ' - '), c: 'tag tag-c0' };
     };
@@ -49,8 +51,15 @@
             });
             items = items.slice(0, 50).map(function (t) { return { tag: t, isNew: false }; });
             const typed = normalizeTag(input.value);
+            let unknownType = false;
             if (typed !== '' && !knownTags.some(function (t) { return t.n === typed; }) && taken.indexOf(typed) === -1) {
-                items.push({ tag: tagInfo(typed), isNew: true });
+                // a new tag needs a type from the list of tag types (E-023)
+                const type = typed.indexOf(':') > 0 ? typed.split(':')[0] : '';
+                if (knownTypes === null || (knownTypes.indexOf(type) !== -1 && exclude.indexOf(type) === -1)) {
+                    items.push({ tag: tagInfo(typed), isNew: true });
+                } else {
+                    unknownType = true;
+                }
             }
             box.textContent = '';
             items.forEach(function (it, i) {
@@ -68,7 +77,12 @@
                 li.appendChild(chip);
                 box.appendChild(li);
             });
-            if (items.length === 0) {
+            if (unknownType && opts.labels.unknownType) {
+                const li = document.createElement('li');
+                li.className = 'muted empty';
+                li.textContent = opts.labels.unknownType + ' ' + knownTypes.filter(function (t) { return exclude.indexOf(t) === -1; }).join(', ');
+                box.appendChild(li);
+            } else if (items.length === 0) {
                 const li = document.createElement('li');
                 li.className = 'muted empty';
                 li.textContent = opts.labels.none;
@@ -118,7 +132,7 @@
     }
 
     document.querySelectorAll('input[data-tag-picker="multi"]').forEach(function (field) {
-        const labels = { newTag: field.dataset.tagNew, none: field.dataset.tagNone, remove: field.dataset.tagRemove };
+        const labels = { newTag: field.dataset.tagNew, none: field.dataset.tagNone, unknownType: field.dataset.tagUnknownType, remove: field.dataset.tagRemove };
         const exclude = (field.dataset.tagExclude || '').split(',').filter(Boolean);
         const wrap = document.createElement('div');
         wrap.className = 'tag-picker';

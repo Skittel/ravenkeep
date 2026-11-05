@@ -4,6 +4,7 @@ namespace App\Libraries\Senders;
 
 use App\Libraries\Inventory\Inventory;
 use App\Libraries\Rules\RuleRunner;
+use App\Libraries\Rules\TagTypes;
 use CodeIgniter\Database\BaseConnection;
 use InvalidArgumentException;
 
@@ -39,6 +40,7 @@ class SenderRuleService
         if ($settings !== null) {
             $data += $this->validSettings($action, $settings);
             $tags = $action === 'allow' ? Inventory::validTags($settings['tags'] ?? []) : [];
+            (new TagTypes($this->db))->assertKnown($tags);
         }
         $now      = gmdate('Y-m-d H:i:s');
         $existing = $this->db->table('sender_rules')->where(['pattern' => $pattern, 'target' => $target])->get()->getRowArray();

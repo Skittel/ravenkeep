@@ -23,6 +23,9 @@ final class RuleRunnerTest extends CIUnitTestCase
     protected function setUp(): void
     {
         parent::setUp();
+        foreach (['typ', 'hersteller', 'status', 'aufgabe', 'sources'] as $type) { // managed tag types (E-023)
+            $this->db->table('tag_types')->insert(['name' => $type]);
+        }
         $this->db->table('nodes')->insert(['name' => 'test01', 'hostname' => 'test01.example']);
         $nodeId = $this->db->insertID();
         $base   = ['node_id' => $nodeId, 'received_at' => '2026-10-31 12:00:00', 'mode' => 'mx', 'envelope_recipient' => 'x@customer.ravenkeep.cloud',
@@ -83,8 +86,8 @@ final class RuleRunnerTest extends CIUnitTestCase
 
     public function testMoveChangesEvaluationOrder(): void
     {
-        $a = $this->repo->save(null, 'A', 'all', false, true, [['field' => 'subject', 'operator' => 'contains', 'value' => 'x']], ['a']);
-        $b = $this->repo->save(null, 'B', 'all', false, true, [['field' => 'subject', 'operator' => 'contains', 'value' => 'x']], ['b']);
+        $a = $this->repo->save(null, 'A', 'all', false, true, [['field' => 'subject', 'operator' => 'contains', 'value' => 'x']], ['aufgabe:a']);
+        $b = $this->repo->save(null, 'B', 'all', false, true, [['field' => 'subject', 'operator' => 'contains', 'value' => 'x']], ['aufgabe:b']);
         $this->repo->move($b, -1);
         $this->assertSame([$b, $a], array_map(static fn ($r) => (int) $r['id'], $this->repo->all()));
     }

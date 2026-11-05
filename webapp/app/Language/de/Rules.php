@@ -73,4 +73,6 @@ return [
     'fromSender' => 'automatisch aus der Absender-Freigabe',
     'fromAddress' => 'automatisch aus der Empfängeradresse',
     'tags' => 'Tags',
+    'invalid_tag_type' => 'Unbekannter Tag-Typ – bitte unter Tags → Tag-Typen anlegen.',
+    'pickerUnknownType' => 'Neue Tags brauchen einen bekannten Typ (Tags → Tag-Typen):',
 ];

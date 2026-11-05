@@ -73,4 +73,6 @@ return [
     'fromSender' => 'automatically from the sender allow rule',
     'fromAddress' => 'automatically from the recipient address',
     'tags' => 'Tags',
+    'invalid_tag_type' => 'Unknown tag type – create it under Tags → Tag types.',
+    'pickerUnknownType' => 'New tags need a known type (Tags → Tag types):',
 ];

@@ -51,6 +51,9 @@ $routes->post('customers/(:num)/devices/(:num)', 'Customers::updateDevice/$1/$2'
 $routes->post('customers/(:num)/devices/(:num)/delete', 'Customers::deleteDevice/$1/$2');
 $routes->get('tags', 'Tags::index');
 $routes->post('tags', 'Tags::create');
+$routes->post('tags/types', 'Tags::createType');
+$routes->post('tags/types/(:num)', 'Tags::updateType/$1');
+$routes->post('tags/types/(:num)/delete', 'Tags::deleteType/$1');
 $routes->post('tags/(:num)', 'Tags::rename/$1');
 $routes->post('tags/(:num)/delete', 'Tags::delete/$1');
 $routes->post('settings/profiles', 'Settings::addProfile');
