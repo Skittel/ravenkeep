@@ -94,7 +94,7 @@ final class SmtpLoginTest extends CIUnitTestCase
         $s = LoginTagSuggestion::suggest('gc.pm10_ipmi_hq1_acme@customer.example.org', $this->inventory->addressLookup());
         $this->assertSame('acme.pm10', $s['device']);
         $this->assertSame(['source:ipmi', 'meldung:gc'], $s['tags']); // kunde/standort/geraet come from the device
-        $this->assertFalse(LoginTagSuggestion::suggest('atc@customer.example.org', $known)['scheme']);
+        $this->assertFalse(LoginTagSuggestion::suggest('initech@customer.example.org', $known)['scheme']);
     }
 
     public function testValidationAndPages(): void
