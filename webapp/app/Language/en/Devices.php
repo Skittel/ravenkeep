@@ -88,7 +88,7 @@ return [
     'component' => 'Component',
     'chooseComponent' => 'Choose component …',
     'chooseDevice' => 'Choose device …',
-    'customTitle' => 'Exception: own user name',
-    'customHint' => 'Only for special cases, e.g. a script without a device. Set device and tags afterwards under “Device and tags”.',
+    'customTitle' => 'Free login (own user name)',
+    'customHint' => 'User name freely chosen, e.g. for scripts, services or logins without a device. Set device (optional) and tags afterwards under “Device and tags” – all tag types are available there.',
     'invalid_component' => 'Unknown component – components are sources (source tags), create new ones under Tags.',
 ];

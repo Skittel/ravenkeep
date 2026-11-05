@@ -88,7 +88,7 @@ return [
     'component' => 'Komponente',
     'chooseComponent' => 'Komponente wählen …',
     'chooseDevice' => 'Gerät wählen …',
-    'customTitle' => 'Ausnahme: eigener Benutzername',
-    'customHint' => 'Nur für Sonderfälle, z. B. ein Skript ohne Gerät. Gerät und Tags legst du danach unter „Gerät und Tags“ fest.',
+    'customTitle' => 'Freier Zugang (eigener Benutzername)',
+    'customHint' => 'Benutzername frei wählbar, z. B. für Skripte, Dienste oder Zugänge ohne Gerät. Gerät (optional) und Tags legst du danach unter „Gerät und Tags“ fest – dort sind alle Tag-Typen wählbar.',
     'invalid_component' => 'Unbekannte Komponente – Komponenten sind Quellen (source-Tags), neue unter Tags anlegen.',
 ];

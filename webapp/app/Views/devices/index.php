@@ -70,7 +70,7 @@ $post = static fn (string $url, string $label, ?string $confirm = null): string 
             <button type="submit" class="button button-primary"><?= lang('Devices.create') ?></button>
         <?= form_close() ?>
         <p class="hint"><?= lang('Devices.usernameHint') ?></p>
-        <details class="custom-login write-only">
+        <details class="custom-login write-only" open>
             <summary><?= lang('Devices.customTitle') ?></summary>
             <p class="hint"><?= lang('Devices.customHint') ?></p>
             <?= form_open('devices', ['class' => 'rule-form']) ?>
