@@ -45,6 +45,7 @@ class Dashboard extends BaseController
             'pending'    => (int) $db->query("SELECT COUNT(DISTINCT SUBSTRING_INDEX(envelope_sender, '@', -1)) AS n FROM messages WHERE status = 'pending'")->getRow()->n,
             'errors'     => $errors,
             'nodeIssues' => array_values($nodes),
+            'addresses'  => (new \App\Libraries\Inventory\AddressService($db, new RuleRunner($db)))->countUnknown(),
         ]);
     }
 }

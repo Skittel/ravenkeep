@@ -22,7 +22,7 @@ $user   = session('user');
 <body class="<?= ($user['role'] ?? '') === 'rw' ? 'role-rw' : 'role-ro' ?>">
 <div class="app <?= $active === 'messages' ? 'app-mail' : 'app-page' ?>">
     <header class="topbar">
-        <a class="brand" href="<?= site_url('/') ?>"><img src="<?= base_url('assets/icon.png') ?>" alt="" class="brand-icon"><?= lang('Ui.appName') ?></a>
+        <a class="brand" href="<?= site_url('/') ?>"><img src="<?= base_url('assets/icon.png') ?>" alt="" class="brand-icon"><span class="brand-text"><?= lang('Ui.appName') ?></span></a>
         <nav class="mainnav">
             <?php foreach ([
                 'dashboard' => ['dashboard', lang('Customers.navDashboard')],
@@ -30,12 +30,14 @@ $user   = session('user');
                 'customers' => ['customers', lang('Customers.nav')],
                 'rules'     => ['rules', lang('Rules.nav')],
                 'tags'      => ['tags', lang('Customers.navTags')],
+                'addresses' => ['addresses', lang('Addresses.nav')],
                 'senders'   => ['senders', lang('Senders.nav')],
                 'devices'   => ['devices', lang('Devices.nav')],
                 'nodes'     => ['nodes', lang('Senders.navNodes')],
                 'settings'  => ['settings', lang('Devices.navSettings')],
             ] as $key => [$url, $label]): ?>
-                <a href="<?= site_url($url) ?>" class="<?= $active === $key ? 'active' : '' ?>"><?= $label ?></a>
+                <?php $openAddresses ??= isset($user) ? (int) (db_connect()->query('SELECT COUNT(DISTINCT envelope_recipient) AS n FROM messages WHERE address_unknown IS NOT NULL')->getRow()->n ?? 0) : 0; ?>
+                <a href="<?= site_url($url) ?>" class="<?= $active === $key ? 'active' : '' ?>"><?= $label ?><?php if ($key === 'addresses' && $openAddresses > 0): ?> <span class="nav-count"><?= $openAddresses ?></span><?php endif ?></a>
             <?php endforeach ?>
         </nav>
         <form class="search" method="get" action="<?= site_url('/') ?>">

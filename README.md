@@ -20,8 +20,10 @@ message that matters, or the one that never arrived, is easily missed.
 - **Rules and tags** – free, combinable tags (e.g. `customer:x`, `type:nas`,
   `task:verify`, `status:error`) assigned by transparent rules.
 - **Address tags** – the recipient address `device_source_location_customer`
-  yields customer, location, source and device tags; with fewer groups the
-  inventory decides whether a part is a known device/location or a source.
+  yields customer, location, source and device tags. Only known values are
+  used (inventory and existing source tags); addresses with unknown parts are
+  listed under "Addresses", where the missing value can be created or the
+  address mapped to an existing device.
 - **Missing-report detection** – expected reports per device and task
   (e.g. daily backup, weekly garbage collection) raise an alert when absent.
 - **Actions** – e.g. create or update a ticket in Zammad via API, without

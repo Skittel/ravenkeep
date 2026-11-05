@@ -55,8 +55,10 @@ class Inventory
         }
         $now = gmdate('Y-m-d H:i:s');
         $this->db->table('customers')->insert(['code' => $code, 'name' => self::validName($name), 'note' => $note, 'created_at' => $now, 'updated_at' => $now]);
+        $id = (int) $this->db->insertID();
+        $this->runner->bumpVersion(); // addresses are read with the known customers (E-019)
 
-        return (int) $this->db->insertID();
+        return $id;
     }
 
     public function updateCustomer(int $id, string $name, ?string $note): void
@@ -71,6 +73,7 @@ class Inventory
             throw new InvalidArgumentException('not_empty');
         }
         $this->db->table('customers')->where('id', $id)->delete();
+        $this->runner->bumpVersion();
     }
 
     // ------------------------------------------------------------------ Locations
@@ -227,19 +230,28 @@ class Inventory
     }
 
     /**
-     * Known location codes ("customer.location") and device paths ("customer.device") for reading
-     * recipient addresses (AddressTags, E-018).
+     * Known values for reading recipient addresses (AddressTags, E-019): customer codes, locations
+     * ("customer.location"), device paths ("customer.device"), sources (values of "source:" tags) and
+     * the address map (address => device path).
      *
-     * @return array{locations: list<string>, devices: list<string>}
+     * @return array{customers: list<string>, locations: list<string>, devices: list<string>, sources: list<string>, map: array<string, string>}
      */
     public function addressLookup(): array
     {
         $locations = $this->db->table('locations l')->select("CONCAT(c.code, '.', l.code) AS k", false)
             ->join('customers c', 'c.id = l.customer_id')->get()->getResultArray();
+        $sources = array_merge( // existing source tags and sources set by rules
+            array_column($this->db->table('tags')->select('name')->like('name', 'source:', 'after')->get()->getResultArray(), 'name'),
+            array_column($this->db->table('rule_actions')->select('value AS name')->where('type', 'add_tag')->like('value', 'source:', 'after')->get()->getResultArray(), 'name'),
+        );
+        $map     = $this->db->table('address_map a')->select('a.address, d.path')->join('devices d', 'd.id = a.device_id')->get()->getResultArray();
 
         return [
+            'customers' => array_column($this->db->table('customers')->select('code')->get()->getResultArray(), 'code'),
             'locations' => array_column($locations, 'k'),
             'devices'   => array_column($this->db->table('devices')->select('path')->get()->getResultArray(), 'path'),
+            'sources'   => array_values(array_unique(array_map(static fn (string $n): string => substr($n, strlen('source:')), $sources))),
+            'map'       => array_column($map, 'path', 'address'),
         ];
     }
 

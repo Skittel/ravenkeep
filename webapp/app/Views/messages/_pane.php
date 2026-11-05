@@ -61,6 +61,7 @@ $html = $reader?->htmlBody();
                     <input type="text" name="tag" maxlength="64" placeholder="<?= esc(lang('Rules.addTag'), 'attr') ?>" required>
                 <?= form_close() ?>
                 <?php if ($m['status'] !== 'accepted'): ?><span class="hint"><?= lang('Rules.onlyAccepted') ?></span><?php endif ?>
+                <?php if (! empty($m['address_unknown'])): ?><span class="hint address-hint"><?= lang('Addresses.paneHint') ?>: <?= esc(implode(', ', array_map(static fn ($p) => lang('Addresses.part_' . $p['part'], [$p['value']]), json_decode($m['address_unknown'], true) ?: []))) ?> – <a href="<?= site_url('addresses') ?>"><?= lang('Addresses.paneLink') ?></a></span><?php endif ?>
             </div>
         </td></tr>
     </table>

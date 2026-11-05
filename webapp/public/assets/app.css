@@ -10,10 +10,10 @@ html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text);
 a { color: var(--accent); text-decoration: none; }
 
 .app { display: grid; grid-template-columns: 230px 1fr; grid-template-rows: 52px 1fr; height: 100vh; }
-.topbar { grid-column: 1 / -1; display: flex; align-items: center; gap: 24px; padding: 0 16px;
+.topbar { grid-column: 1 / -1; display: flex; align-items: center; gap: 14px; padding: 0 16px;
           background: #1d2733; color: #fff; }
 .brand { color: #fff; font-weight: 700; font-size: 17px; letter-spacing: .5px; width: 198px; }
-.search { flex: 1; max-width: 640px; }
+.search { flex: 1; min-width: 140px; max-width: 640px; }
 .search input { width: 100%; padding: 8px 12px; border-radius: 6px; border: 0; font-size: 14px; }
 
 .sidebar { background: var(--panel); border-right: 1px solid var(--border); padding: 12px; overflow-y: auto; }
@@ -80,7 +80,7 @@ iframe { width: 100%; min-height: 480px; border: 1px solid var(--border); border
 
 /* --- Navigation, pages, forms (0.1.5) --- */
 .app-page { grid-template-columns: 1fr; }
-.mainnav { display: flex; gap: 4px; }
+.mainnav { display: flex; gap: 2px; }
 .mainnav a { color: #c9d2dc; padding: 6px 12px; border-radius: 6px; }
 .mainnav a:hover { color: #fff; background: rgba(255,255,255,.08); }
 .mainnav a.active { color: #fff; background: rgba(255,255,255,.16); }
@@ -197,7 +197,7 @@ table.devices code { font-size: 11px; }
 .tile-good .tile-num { color: var(--accepted); }
 .ok-text { color: var(--accepted); font-weight: 600; }
 .role-ro-only { display: none; } .role-ro .role-ro-only { display: inline; }
-.mainnav a { padding: 6px 9px; }
+.mainnav a { padding: 6px 8px; white-space: nowrap; }
 
 /* Tag picker (assets/app.js) */
 .tag-picker { position: relative; display: flex; flex-wrap: wrap; align-items: center; gap: 2px; max-width: 520px; min-height: 34px;
@@ -227,3 +227,11 @@ table.devices code { font-size: 11px; }
 /* Tags page filter */
 .tag-filter { display: flex; gap: 10px; align-items: flex-end; flex-wrap: wrap; margin: 0 0 12px; }
 .tag-filter input[type=search], .tag-filter select { font: inherit; padding: 6px 8px; border: 1px solid var(--border); border-radius: 6px; min-width: 200px; }
+
+/* unresolved addresses (E-019) */
+.nav-count { display: inline-block; min-width: 18px; padding: 0 5px; border-radius: 9px; background: var(--pending); color: #fff; font-size: 11px; font-weight: 600; text-align: center; line-height: 18px; }
+.address-actions .write-only { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.address-map select { font: inherit; padding: 5px 6px; border: 1px solid var(--border); border-radius: 6px; max-width: 260px; }
+.address-hint { color: var(--pending); }
+/* narrower screens: icon only, so the ten menu entries fit in one line */
+@media (max-width: 1380px) { .brand { width: auto; } .brand-text { display: none; } }

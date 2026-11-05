@@ -55,11 +55,14 @@ class TagService
     public function create(string $name): int
     {
         $name = $this->assertEditable(TagName::normalize($name));
+        $id   = $this->runner->tagId($name);
+        if (TagName::type($name) === 'source') {
+            $this->runner->bumpVersion(); // a new source can resolve recipient addresses (E-019)
+        }
 
-        return $this->runner->tagId($name);
+        return $id;
     }
 
-    /** Rename a tag; rule actions and tag conditions using the old name are updated. */
     /** Rename a tag; rules follow. If the new name exists already, both tags are merged. */
     public function rename(int $id, string $newName): void
     {

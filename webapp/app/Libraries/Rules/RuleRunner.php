@@ -36,7 +36,7 @@ class RuleRunner
     /** @var array<string, list<string>>|null tags per device path */
     private ?array $pathTags = null;
 
-    /** @var array{locations: list<string>, devices: list<string>}|null inventory codes for reading addresses */
+    /** @var array<string, mixed>|null known values for reading addresses (Inventory::addressLookup) */
     private ?array $addressKnown = null;
 
     /** @var list<string>|null domains whose recipient addresses carry tags */
@@ -107,7 +107,8 @@ class RuleRunner
             ->where(['mt.message_id' => $message['id'], 'mt.source' => 'manual'])->get()->getResultArray();
         $manualNames = array_column($manual, 'name');
 
-        [$deviceTags, $addressTags] = $message['status'] === 'accepted' ? $this->automaticTags($message, $manualNames) : [[], []];
+        [$deviceTags, $addressTags, $unknown] = $message['status'] === 'accepted' ? $this->automaticTags($message, $manualNames) : [[], [], null];
+        $update['address_unknown'] = $unknown === null ? null : json_encode($unknown, JSON_THROW_ON_ERROR);
 
         $tags = $message['status'] === 'accepted'
             ? $this->engine()->evaluate($message, $manualNames, [...$deviceTags, ...$addressTags])['tags'] : [];
@@ -141,11 +142,13 @@ class RuleRunner
     }
 
     /**
-     * Device tags (SMTP login, or the device named by the recipient address) and address tags.
+     * Device tags (SMTP login, or the device named or mapped by the recipient address) and address tags.
+     * Address tags only use known values (E-019); unknown parts are returned for the clearing list.
      *
      * @param list<string> $manualNames
      *
-     * @return array{0: list<string>, 1: list<string>}
+     * @return array{0: list<string>, 1: list<string>, 2: list<array{part: string, value: string}>|null}
+     *         device tags, address tags, unknown parts (null if the address is resolved or not read)
      */
     private function automaticTags(array $message, array $manualNames): array
     {
@@ -156,23 +159,27 @@ class RuleRunner
         }
 
         $address   = [];
-        $recipient = strtolower((string) $message['envelope_recipient']);
+        $unknown   = null;
+        $recipient = strtolower(trim((string) $message['envelope_recipient'], '<> '));
         $domain    = substr((string) strrchr($recipient, '@'), 1);
         $this->addressDomains ??= array_column($this->db->table('local_domains')->select('domain')->where('parse_address', 1)->get()->getResultArray(), 'domain');
-        if ($domain !== '' && in_array($domain, $this->addressDomains, true)) {
-            $this->addressKnown ??= (new Inventory($this->db, $this))->addressLookup();
-            $address = AddressTags::tags($recipient, $this->addressKnown);
-            $parsed  = AddressTags::parse($recipient, $this->addressKnown);
-            if ($device === [] && $parsed !== null && $parsed['device'] !== null) {
+        $this->addressKnown   ??= (new Inventory($this->db, $this))->addressLookup();
+        $mapped = $this->addressKnown['map'][$recipient] ?? null;
+
+        if ($device === [] && ($mapped !== null || ($domain !== '' && in_array($domain, $this->addressDomains, true)))) {
+            $result  = AddressTags::resolve($recipient, $this->addressKnown, $mapped);
+            $address = $result['tags'];
+            $unknown = $result['unknown'] === [] ? null : $result['unknown'];
+            if ($result['device'] !== null) {
                 $this->pathTags ??= (new Inventory($this->db, $this))->tagsByPath();
-                $device = $this->pathTags[$parsed['customer'] . '.' . $parsed['device']] ?? [];
+                $device = $this->pathTags[$result['device']] ?? [];
             }
         }
 
         $device  = array_values(array_diff(array_unique($device), $manualNames));
         $address = array_values(array_diff(array_unique($address), $manualNames, $device));
 
-        return [$device, $address];
+        return [$device, $address, $unknown];
     }
 
     /** Id of a tag, created if necessary. */

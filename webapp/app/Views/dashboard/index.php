@@ -7,6 +7,7 @@
  * @var int $pending
  * @var list<array> $errors
  * @var list<array> $nodeIssues
+ * @var int $addresses
  */
 $this->setData(['active' => 'dashboard', 'title' => lang('Customers.navDashboard')]);
 ?>
@@ -20,6 +21,7 @@ $this->setData(['active' => 'dashboard', 'title' => lang('Customers.navDashboard
         <a class="tile <?= $counts['rejected'] > 0 ? 'tile-warn' : '' ?>" href="<?= site_url('/') ?>?status=rejected"><span class="tile-num"><?= $counts['rejected'] ?></span><?= lang('Customers.tileRejected') ?></a>
         <a class="tile <?= $pending > 0 ? 'tile-warn' : '' ?>" href="<?= site_url('senders') ?>"><span class="tile-num"><?= $pending ?></span><?= lang('Customers.tilePending') ?></a>
         <a class="tile <?= $nodeIssues !== [] ? 'tile-bad' : 'tile-good' ?>" href="<?= site_url('nodes') ?>"><span class="tile-num"><?= count($nodeIssues) ?></span><?= lang('Customers.tileNodes') ?></a>
+        <a class="tile <?= $addresses > 0 ? 'tile-warn' : 'tile-good' ?>" href="<?= site_url('addresses') ?>"><span class="tile-num"><?= $addresses ?></span><?= lang('Addresses.tile') ?></a>
     </div>
 
     <section class="card" id="overdue">

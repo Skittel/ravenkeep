@@ -56,3 +56,7 @@ $routes->post('tags/(:num)/delete', 'Tags::delete/$1');
 $routes->post('settings/profiles', 'Settings::addProfile');
 $routes->post('settings/profiles/(:num)', 'Settings::updateProfile/$1');
 $routes->post('settings/profiles/(:num)/delete', 'Settings::deleteProfile/$1');
+$routes->get('addresses', 'Addresses::index');
+$routes->post('addresses/create', 'Addresses::create');
+$routes->post('addresses/map', 'Addresses::map');
+$routes->post('addresses/map/(:num)/delete', 'Addresses::unmap/$1');

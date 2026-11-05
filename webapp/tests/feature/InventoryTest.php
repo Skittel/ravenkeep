@@ -123,6 +123,7 @@ final class InventoryTest extends CIUnitTestCase
     {
         $this->db->table('local_domains')->insert(['domain' => 'report.example.org', 'parse_address' => 1]);
         $this->inventory->createDevice($this->customer, $this->location, 'pm10', 'PM10', null, ['hersteller:dell']);
+        (new TagService($this->db, $this->runner))->create('source:proxmox');
 
         $known   = $this->addMessage('a', ['mode' => 'mx', 'envelope_recipient' => 'gc.pm10_proxmox_2og.branch2_acme@report.example.org']);
         $unknown = $this->addMessage('b', ['mode' => 'mx', 'envelope_recipient' => 'nas09_other@report.example.org']);
@@ -135,33 +136,40 @@ final class InventoryTest extends CIUnitTestCase
             'geraet:acme.pm10' => 'device', 'hersteller:dell' => 'device', 'kunde:acme' => 'device', 'meldung:gc' => 'address',
             'source:proxmox' => 'address', 'standort:acme.branch2' => 'device', 'standort:acme.branch2.2og' => 'address',
         ], $this->tagsOf($known));
-        // unknown values: new tags are created from the address; 2 groups without a known device = source (E-018)
-        $this->assertSame(['kunde:other' => 'address', 'source:nas09' => 'address'], $this->tagsOf($unknown));
-        $this->seeInDatabase('tags', ['name' => 'kunde:other']);
+        $this->seeInDatabase('messages', ['id' => $known, 'address_unknown' => null]);
+        // unknown customer: no tags, nothing created, listed for clearing up (E-019)
+        $this->assertSame([], $this->tagsOf($unknown));
+        $this->dontSeeInDatabase('tags', ['name' => 'kunde:other']);
+        $this->seeInDatabase('messages', ['id' => $unknown, 'address_unknown' => '[{"part":"customer","value":"other"}]']);
         // only accepted messages (E-002), only marked domains
         $this->assertSame([], $this->tagsOf($pending));
         $this->assertSame([], $this->tagsOf($plain));
+        $this->seeInDatabase('messages', ['id' => $pending, 'address_unknown' => null]);
+        $this->seeInDatabase('messages', ['id' => $plain, 'address_unknown' => null]);
     }
 
-    public function testAddressIsReadWithKnownLocationsAndDevices(): void
+    public function testOnlyKnownValuesAndNewInventoryResolvesMessages(): void
     {
         $this->db->table('local_domains')->insert(['domain' => 'report.example.org', 'parse_address' => 1]);
         $plesk = $this->addMessage('a', ['mode' => 'mx', 'envelope_recipient' => 'srv01_plesk_acme@report.example.org']);
         $nas   = $this->addMessage('b', ['mode' => 'mx', 'envelope_recipient' => 'nas05_acme@report.example.org']);
         $this->runner->processBatch();
 
-        $this->assertSame(['geraet:acme.srv01' => 'address', 'kunde:acme' => 'address', 'source:plesk' => 'address'], $this->tagsOf($plesk));
-        $this->assertSame(['kunde:acme' => 'address', 'source:nas05' => 'address'], $this->tagsOf($nas));
+        $this->assertSame([], $this->tagsOf($plesk));
+        $this->assertSame([['part' => 'device', 'value' => 'srv01'], ['part' => 'location_or_source', 'value' => 'plesk']],
+            json_decode($this->db->table('messages')->where('id', $plesk)->get()->getRow()->address_unknown, true));
+        $this->assertSame([], $this->tagsOf($nas));
 
-        // a new location or device changes the reading of existing messages (rules version bumped)
-        $this->inventory->createLocation($this->customer, 'plesk', 'Plesk room', null);
+        // creating the device, the source and another device resolves the messages (rules version bumped)
+        $this->inventory->createDevice($this->customer, $this->location, 'srv01', 'Server 01', null, []);
+        (new TagService($this->db, $this->runner))->create('source:plesk');
         $this->inventory->createDevice($this->customer, null, 'nas05', 'NAS05', null, []);
         $this->runner->processBatch();
 
-        $this->assertArrayHasKey('standort:acme.plesk', $this->tagsOf($plesk));
-        $this->assertArrayNotHasKey('source:plesk', $this->tagsOf($plesk));
-        $this->assertArrayHasKey('geraet:acme.nas05', $this->tagsOf($nas));
-        $this->assertArrayNotHasKey('source:nas05', $this->tagsOf($nas));
+        $this->assertSame(['geraet:acme.srv01' => 'device', 'kunde:acme' => 'device', 'source:plesk' => 'address',
+            'standort:acme.branch2' => 'device'], $this->tagsOf($plesk));
+        $this->assertSame(['geraet:acme.nas05' => 'device', 'kunde:acme' => 'device'], $this->tagsOf($nas));
+        $this->seeInDatabase('messages', ['id' => $plesk, 'address_unknown' => null]);
     }
 
     public function testFixedRulesWinOverAutomaticTagsOfTheSameType(): void
@@ -171,11 +179,12 @@ final class InventoryTest extends CIUnitTestCase
             ['field' => 'header_from', 'operator' => 'ends_with', 'value' => '@mailhardener.example'],
         ], ['kunde:skit']);
 
+        (new TagService($this->db, $this->runner))->create('source:mailhardener');
         $id = $this->addMessage('a', ['mode' => 'mx', 'header_from_address' => 'alerts@mailhardener.example',
-            'envelope_recipient' => 'mh_branch2_acme@report.example.org']);
+            'envelope_recipient' => 'mailhardener_acme@report.example.org']);
         $this->runner->processBatch();
 
-        $this->assertSame(['geraet:acme.mh' => 'address', 'kunde:skit' => 'rule', 'standort:acme.branch2' => 'address'], $this->tagsOf($id));
+        $this->assertSame(['kunde:skit' => 'rule', 'source:mailhardener' => 'address'], $this->tagsOf($id));
     }
 
     public function testRuleClaimsATagTheAddressAlsoSets(): void
