@@ -35,7 +35,7 @@ final class MessagesTest extends CIUnitTestCase
 
         $this->db->table('nodes')->insert(['name' => 'test01', 'hostname' => 'test01.example']);
         $nodeId = $this->db->insertID();
-        $base   = ['node_id' => $nodeId, 'received_at' => '2026-10-31 12:00:00', 'mode' => 'mx',
+        $base   = ['node_id' => $nodeId, 'received_at' => gmdate('Y-m-d H:i:s', time() - 3600), 'mode' => 'mx',
             'envelope_recipient' => 'x@customer.ravenkeep.cloud', 'eml_path' => '2026/10/31/a.eml', 'eml_sha256' => str_repeat('0', 64)];
 
         $this->db->table('messages')->insert($base + ['spool_id' => 'a', 'status' => 'accepted', 'subject' => 'Backup OK',
@@ -67,6 +67,25 @@ final class MessagesTest extends CIUnitTestCase
         $search = $this->get('/?q=monitor');
         $search->assertSee('Backup OK');
         $search->assertDontSee('spam@unknown.example');
+    }
+
+    public function testTimeRangeDefaultsTo48Hours(): void
+    {
+        $this->db->table('messages')->insert(['node_id' => 1, 'spool_id' => 'old', 'status' => 'accepted', 'subject' => 'Old report',
+            'received_at' => gmdate('Y-m-d H:i:s', time() - 3 * 86400), 'mode' => 'mx', 'envelope_recipient' => 'x@customer.ravenkeep.cloud',
+            'envelope_sender' => 'a@monitor.example', 'eml_path' => '2026/10/31/a.eml', 'eml_sha256' => str_repeat('0', 64), 'reasons' => '[]']);
+
+        $default = $this->get('/');
+        $default->assertSee('Backup OK');
+        $default->assertDontSee('Old report');
+        $this->assertStringContainsString('<option value="48h" selected>', $default->getBody());
+
+        $this->get('/?range=1w')->assertSee('Old report');
+        $this->get('/?range=all')->assertSee('Old report');
+        $this->get('/?range=1h')->assertDontSee('Old report');
+        $this->get('/?range=bogus')->assertDontSee('Old report'); // invalid = default
+        // the selected range is kept by the filter links
+        $this->assertStringContainsString('range=1w', $this->get('/?range=1w')->getBody());
     }
 
     public function testReadingPaneShowsReasonsAndBody(): void

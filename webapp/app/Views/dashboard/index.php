@@ -16,9 +16,9 @@ $this->setData(['active' => 'dashboard', 'title' => lang('Customers.navDashboard
 <div class="page">
     <div class="tiles">
         <a class="tile <?= $overdue !== [] ? 'tile-bad' : 'tile-good' ?>" href="#overdue"><span class="tile-num"><?= count($overdue) ?></span><?= lang('Customers.tileOverdue', [$monitored]) ?></a>
-        <a class="tile <?= $errors !== [] ? 'tile-bad' : 'tile-good' ?>" href="<?= site_url('/') ?>?tag%5B0%5D=status%3Aerror"><span class="tile-num"><?= count($errors) ?></span><?= lang('Customers.tileErrors') ?></a>
-        <a class="tile" href="<?= site_url('/') ?>?status=accepted"><span class="tile-num"><?= $counts['accepted'] ?></span><?= lang('Customers.tileAccepted') ?></a>
-        <a class="tile <?= $counts['rejected'] > 0 ? 'tile-warn' : '' ?>" href="<?= site_url('/') ?>?status=rejected"><span class="tile-num"><?= $counts['rejected'] ?></span><?= lang('Customers.tileRejected') ?></a>
+        <a class="tile <?= $errors !== [] ? 'tile-bad' : 'tile-good' ?>" href="<?= site_url('/') ?>?range=24h&amp;tag%5B0%5D=status%3Aerror"><span class="tile-num"><?= count($errors) ?></span><?= lang('Customers.tileErrors') ?></a>
+        <a class="tile" href="<?= site_url('/') ?>?range=24h&amp;status=accepted"><span class="tile-num"><?= $counts['accepted'] ?></span><?= lang('Customers.tileAccepted') ?></a>
+        <a class="tile <?= $counts['rejected'] > 0 ? 'tile-warn' : '' ?>" href="<?= site_url('/') ?>?range=24h&amp;status=rejected"><span class="tile-num"><?= $counts['rejected'] ?></span><?= lang('Customers.tileRejected') ?></a>
         <a class="tile <?= $pending > 0 ? 'tile-warn' : '' ?>" href="<?= site_url('senders') ?>"><span class="tile-num"><?= $pending ?></span><?= lang('Customers.tilePending') ?></a>
         <a class="tile <?= $nodeIssues !== [] ? 'tile-bad' : 'tile-good' ?>" href="<?= site_url('nodes') ?>"><span class="tile-num"><?= count($nodeIssues) ?></span><?= lang('Customers.tileNodes') ?></a>
         <a class="tile <?= $addresses > 0 ? 'tile-warn' : 'tile-good' ?>" href="<?= site_url('addresses') ?>"><span class="tile-num"><?= $addresses ?></span><?= lang('Addresses.tile') ?></a>
@@ -37,7 +37,7 @@ $this->setData(['active' => 'dashboard', 'title' => lang('Customers.navDashboard
                 <tbody>
                 <?php foreach ($overdue as $d): ?>
                     <tr class="overdue">
-                        <td><a href="<?= site_url('/') ?>?tag%5B0%5D=<?= urlencode('geraet:' . $d['path']) ?>"><strong><?= esc($d['name']) ?></strong></a><br><code class="muted"><?= esc($d['path']) ?></code></td>
+                        <td><a href="<?= site_url('/') ?>?range=all&amp;tag%5B0%5D=<?= urlencode('geraet:' . $d['path']) ?>"><strong><?= esc($d['name']) ?></strong></a><br><code class="muted"><?= esc($d['path']) ?></code></td>
                         <td><?= esc($d['customer_name']) ?></td>
                         <td><?= esc($d['profile']) ?> (<?= $d['hours'] ?> h)</td>
                         <td><?= $d['last_seen'] ? esc(rk_time($d['last_seen'], 'd.m.Y H:i')) : lang('Devices.never') ?></td>

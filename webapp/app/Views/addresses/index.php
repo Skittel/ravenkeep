@@ -37,7 +37,7 @@ foreach ($devices as $d) {
                 <tbody>
                 <?php foreach ($unknown as $u): ?>
                     <tr>
-                        <td><code><?= esc($u['address']) ?></code><br><a class="muted" href="<?= site_url('/') ?>?q=<?= urlencode($u['address']) ?>&amp;id=<?= $u['last_id'] ?>"><?= lang('Addresses.showMessages') ?></a></td>
+                        <td><code><?= esc($u['address']) ?></code><br><a class="muted" href="<?= site_url('/') ?>?range=all&amp;q=<?= urlencode($u['address']) ?>&amp;id=<?= $u['last_id'] ?>"><?= lang('Addresses.showMessages') ?></a></td>
                         <td><?= lang('Addresses.dir_' . $u['direction']) ?></td>
                         <td class="num"><?= $u['messages'] ?></td>
                         <td><?= esc(rk_time($u['first'], 'd.m. H:i')) ?><?= $u['first'] !== $u['last'] ? ' – ' . esc(rk_time($u['last'], 'd.m. H:i')) : '' ?></td>
@@ -96,7 +96,7 @@ foreach ($devices as $d) {
             <tbody>
             <?php foreach ($unverified as $v): ?>
                 <tr>
-                    <td><code><?= esc($v['address']) ?></code><br><a class="muted" href="<?= site_url('/') ?>?q=<?= urlencode($v['address']) ?>&amp;id=<?= $v['last_id'] ?>"><?= lang('Addresses.showMessages') ?></a></td>
+                    <td><code><?= esc($v['address']) ?></code><br><a class="muted" href="<?= site_url('/') ?>?range=all&amp;q=<?= urlencode($v['address']) ?>&amp;id=<?= $v['last_id'] ?>"><?= lang('Addresses.showMessages') ?></a></td>
                     <td class="num"><?= $v['messages'] ?></td>
                     <td><?= esc(rk_sender_reason($v['reason'])) ?></td>
                 </tr>

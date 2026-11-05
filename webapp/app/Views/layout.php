@@ -41,6 +41,9 @@ $user   = session('user');
             <?php endforeach ?>
         </nav>
         <form class="search" method="get" action="<?= site_url('/') ?>">
+            <?php if (! empty($search['range'])): ?>
+                <input type="hidden" name="range" value="<?= esc($search['range'], 'attr') ?>">
+            <?php endif ?>
             <?php if (! empty($search['status'])): ?>
                 <input type="hidden" name="status" value="<?= esc($search['status'], 'attr') ?>">
             <?php endif ?>

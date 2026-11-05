@@ -23,6 +23,7 @@ class Messages extends BaseController
     {
         $config = config('Ravenkeep');
         $filter = [
+            'range'  => MessageModel::range($this->request->getGet('range')),
             'status' => $this->request->getGet('status'),
             'q'      => $this->request->getGet('q'),
         ];
@@ -43,9 +44,9 @@ class Messages extends BaseController
         return view('messages/index', [
             'filter'   => $filter + ['page' => $page > 1 ? $page : null],
             'messages' => $messages,
-            'counts'   => (new MessageModel())->countsByStatus(),
+            'counts'   => (new MessageModel())->countsByStatus($filter['range']),
             'tags'     => (new MessageModel())->tagsFor(array_column($messages, 'id')),
-            'tagTree'  => (new MessageModel())->tagTree(),
+            'tagTree'  => (new MessageModel())->tagTree($filter['range']),
             'total'    => $total,
             'page'     => $page,
             'pages'    => $pages,

@@ -62,7 +62,7 @@ $post = static fn (string $url, string $label, ?string $confirm = null): string 
                         <td><code><?= esc($i['username']) ?></code><?php if (! $i['enabled']): ?> <span class="badge badge-blocked"><?= lang('Devices.disabled') ?></span><?php endif ?></td>
                         <td><?= $i['device_name'] ? esc($i['customer_name'] . ' – ' . $i['device_name']) : '<span class="muted">–</span>' ?></td>
                         <td><?= esc($i['note'] ?? '') ?></td>
-                        <td><?php if (isset($lastSeen[$i['username']])): ?><a href="<?= site_url('/') ?>?q=<?= urlencode($i['username']) ?>"><?= esc(rk_time($lastSeen[$i['username']], 'd.m.Y H:i')) ?></a><?php else: ?><span class="muted"><?= lang('Devices.never') ?></span><?php endif ?></td>
+                        <td><?php if (isset($lastSeen[$i['username']])): ?><a href="<?= site_url('/') ?>?range=all&amp;q=<?= urlencode($i['username']) ?>"><?= esc(rk_time($lastSeen[$i['username']], 'd.m.Y H:i')) ?></a><?php else: ?><span class="muted"><?= lang('Devices.never') ?></span><?php endif ?></td>
                         <td><?= esc(rk_time($i['password_set_at'], 'd.m.Y H:i')) ?></td>
                         <td class="actions">
                             <?= $post('devices/' . $i['id'] . '/password', lang('Devices.newPassword'), lang('Devices.confirmPassword')) ?>

@@ -137,7 +137,7 @@ $autoTag = static fn (string $t) => in_array(explode(':', $t, 2)[0], ['kunde', '
                         <tr class="<?= $mon && $mon['overdue'] ? 'overdue' : '' ?>">
                             <td><strong><?= esc($d['name']) ?></strong><br><code class="muted"><?= esc($d['path']) ?></code><?php if ($d['note']): ?><br><span class="muted"><?= esc($d['note']) ?></span><?php endif ?></td>
                             <td><?= esc($d['location_name'] ?? '–') ?></td>
-                            <td><?php foreach ($tags[$id] ?? [] as $t): ?><a class="<?= rk_tag_class($t) ?>" href="<?= site_url('/') ?>?tag%5B0%5D=<?= urlencode($t) ?>"><?= esc(rk_tag_label($t)) ?></a><?php endforeach ?></td>
+                            <td><?php foreach ($tags[$id] ?? [] as $t): ?><a class="<?= rk_tag_class($t) ?>" href="<?= site_url('/') ?>?range=all&amp;tag%5B0%5D=<?= urlencode($t) ?>"><?= esc(rk_tag_label($t)) ?></a><?php endforeach ?></td>
                             <td><?php if ($mon): ?>
                                     <span class="badge badge-<?= $mon['overdue'] ? 'rejected' : 'accepted' ?>"><?= $mon['overdue'] ? lang('Customers.overdue') : lang('Customers.ok') ?></span>
                                     <br><span class="muted"><?= esc($d['profile_name']) ?> · <?= lang('Customers.lastSeen') ?>: <?= $mon['last_seen'] ? esc(rk_time($mon['last_seen'], 'd.m. H:i')) : lang('Devices.never') ?></span>

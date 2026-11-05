@@ -22,6 +22,17 @@ $statusLabels = [
 <?= $this->extend('layout') ?>
 <?= $this->section('content') ?>
     <nav class="sidebar">
+        <form method="get" action="<?= site_url('/') ?>" class="range-form">
+            <?php foreach (['status', 'q'] as $key): ?><?php if (! empty($filter[$key])): ?><input type="hidden" name="<?= $key ?>" value="<?= esc($filter[$key], 'attr') ?>"><?php endif ?><?php endforeach ?>
+            <?php foreach ($filter['tag'] ?? [] as $t): ?><input type="hidden" name="tag[]" value="<?= esc($t, 'attr') ?>"><?php endforeach ?>
+            <label><?= lang('Ui.range') ?>
+                <select name="range" data-autosubmit>
+                    <?php foreach (array_keys(App\Models\MessageModel::RANGES) as $r): ?>
+                        <option value="<?= $r ?>"<?= ($filter['range'] ?? App\Models\MessageModel::DEFAULT_RANGE) === $r ? ' selected' : '' ?>><?= lang('Ui.range_' . $r) ?></option>
+                    <?php endforeach ?>
+                </select></label>
+            <noscript><button type="submit" class="button"><?= lang('Ui.apply') ?></button></noscript>
+        </form>
         <h2><?= lang('Ui.status') ?></h2>
         <ul class="filters">
             <li><a href="<?= rk_query($filter, ['status' => null, 'page' => null]) ?>" class="<?= empty($filter['status']) ? 'active' : '' ?>">

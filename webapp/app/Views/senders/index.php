@@ -149,7 +149,7 @@ $observedText = static function (array $r) use ($observed): string {
                         <?php endif ?></td>
                         <td><?php if ($r['customer_code'] !== null): ?><span class="<?= rk_tag_class('kunde:x') ?>"><?= esc(rk_tag_label('kunde:' . $r['customer_code'])) ?></span>
                             <?php elseif ($r['tag_source'] !== null): ?><span class="<?= rk_tag_class('source:x') ?>"><?= esc(rk_tag_label('source:' . $r['tag_source'])) ?></span> <span class="muted">+ <?= lang('Senders.tagDevice') ?></span><?php endif ?>
-                            <?php foreach ($ruleTags[(int) $r['id']] ?? [] as $t): ?><a class="<?= rk_tag_class($t) ?>" href="<?= site_url('/') ?>?tag%5B0%5D=<?= urlencode($t) ?>"><?= esc(rk_tag_label($t)) ?></a><?php endforeach ?></td>
+                            <?php foreach ($ruleTags[(int) $r['id']] ?? [] as $t): ?><a class="<?= rk_tag_class($t) ?>" href="<?= site_url('/') ?>?range=all&amp;tag%5B0%5D=<?= urlencode($t) ?>"><?= esc(rk_tag_label($t)) ?></a><?php endforeach ?></td>
                         <td><?= esc($r['note'] ?? '') ?></td>
                         <td><?= esc(rk_time($r['created_at'], 'd.m.Y H:i')) ?></td>
                         <td class="actions">

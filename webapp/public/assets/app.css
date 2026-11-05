@@ -236,3 +236,6 @@ table.devices code { font-size: 11px; }
 /* narrower screens: icon only, so the ten menu entries fit in one line */
 @media (max-width: 1380px) { .brand { width: auto; } .brand-text { display: none; } }
 .check-none { color: var(--rejected, #b42318); font-weight: 600; }
+.range-form { margin: 4px 8px 0; }
+.range-form label { display: block; font-size: 11px; text-transform: uppercase; color: var(--muted); letter-spacing: .6px; }
+.range-form select { display: block; width: 100%; margin-top: 6px; text-transform: none; letter-spacing: 0; font-size: 13px; }
