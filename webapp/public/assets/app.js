@@ -2,6 +2,16 @@
 (function () {
     'use strict';
 
+    // Smartphone menu: the hamburger button shows navigation, user box and the mail sidebar
+    const toggle = document.querySelector('.nav-toggle');
+    if (toggle) {
+        toggle.addEventListener('click', function () {
+            const open = document.querySelector('.app').classList.toggle('nav-open');
+            toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+            if (open) window.scrollTo(0, 0);
+        });
+    }
+
     // Confirmation for destructive forms (data-confirm="…")
     document.addEventListener('submit', function (e) {
         const msg = e.target.dataset && e.target.dataset.confirm;
@@ -296,10 +306,18 @@
             .catch(function (e) { pane.innerHTML = '<p class="error">Error ' + e.message + '</p>'; });
     }
 
+    // smartphone: a message opens as its own page (list and pane are shown one at a time)
+    const phone = window.matchMedia('(max-width: 760px)');
+
     list.addEventListener('click', function (e) {
         const row = e.target.closest('tr[data-id]');
         if (!row) return;
         e.preventDefault();
+        if (phone.matches) {
+            const link = row.querySelector('.col-subject a');
+            if (link) window.location.href = link.href;
+            return;
+        }
         select(row, false);
     });
 

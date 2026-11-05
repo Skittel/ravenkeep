@@ -18,7 +18,7 @@ $statusLabels = [
     'blocked'  => lang('Ui.statusBlocked'),
 ];
 ?>
-<?php $this->setData(['active' => 'messages', 'search' => $filter]); ?>
+<?php $this->setData(['active' => 'messages', 'search' => $filter, 'hasSelection' => $pane !== null]); ?>
 <?= $this->extend('layout') ?>
 <?= $this->section('content') ?>
     <nav class="sidebar">
@@ -106,6 +106,7 @@ $statusLabels = [
         </section>
 
         <section class="pane" id="reading-pane">
+            <a class="back-link" href="<?= rk_query($filter, ['id' => null]) ?>">‹ <?= lang('Ui.backToList') ?></a>
             <?= $pane ?? '<p class="placeholder">' . lang('Ui.selectMessage') . '</p>' ?>
         </section>
     </main>

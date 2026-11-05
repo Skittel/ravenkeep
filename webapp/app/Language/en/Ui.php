@@ -74,4 +74,6 @@ return [
     'range_1m' => 'last month',
     'range_all' => 'all',
     'apply' => 'Apply',
+    'menu' => 'Menu',
+    'backToList' => 'Messages',
 ];

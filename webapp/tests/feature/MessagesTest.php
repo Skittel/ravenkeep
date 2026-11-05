@@ -108,6 +108,7 @@ final class MessagesTest extends CIUnitTestCase
         if (getenv('RK_DUMP_PAGES')) {
             file_put_contents(getenv('RK_DUMP_PAGES') . '/mail.html', $result->getBody());
             file_put_contents(getenv('RK_DUMP_PAGES') . '/dashboard.html', $this->get('dashboard')->getBody());
+            file_put_contents(getenv('RK_DUMP_PAGES') . '/list.html', $this->get('/')->getBody());
         }
     }
 

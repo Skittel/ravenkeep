@@ -239,3 +239,61 @@ table.devices code { font-size: 11px; }
 .range-form { margin: 4px 8px 0; }
 .range-form label { display: block; font-size: 11px; text-transform: uppercase; color: var(--muted); letter-spacing: .6px; }
 .range-form select { display: block; width: 100%; margin-top: 6px; text-transform: none; letter-spacing: 0; font-size: 13px; }
+
+/* --- Smartphone (0.3.19): mail list first, a message is its own page, menu and tags behind the hamburger --- */
+.nav-toggle, .back-link { display: none; }
+@media (max-width: 760px) {
+    html, body { height: auto; }
+    .app, .app-page { display: block; height: auto; min-height: 100vh; }
+    .topbar { position: sticky; top: 0; z-index: 20; flex-wrap: wrap; gap: 8px; padding: 8px 10px; min-height: 52px; }
+    .brand { width: auto; } .brand-text { display: none; } .brand-icon { height: 30px; width: 30px; }
+    .search { order: 2; flex: 1; min-width: 0; max-width: none; }
+    .search input, input, select, textarea { font-size: 16px; } /* iOS: no zoom on focus */
+    .nav-toggle { display: block; order: 3; background: none; border: 1px solid rgba(255,255,255,.3); color: #fff;
+                  font-size: 20px; line-height: 1; padding: 6px 10px; border-radius: 6px; cursor: pointer; }
+    .mainnav, .userbox { display: none; }
+    .nav-open .mainnav { display: grid; grid-template-columns: 1fr 1fr; order: 4; width: 100%; gap: 4px; padding: 6px 0 2px; }
+    .nav-open .mainnav a { padding: 10px 10px; font-size: 15px; background: rgba(255,255,255,.05); }
+    .nav-open .mainnav a.active { background: rgba(255,255,255,.2); color: #fff; font-weight: 600; }
+    .nav-open .userbox { display: flex; order: 5; width: 100%; gap: 12px; padding: 10px 8px; border-top: 1px solid rgba(255,255,255,.15); }
+
+    /* mail view: sidebar (period, status, tags) only in the open menu; list or message, not both */
+    .app-mail .sidebar { display: none; }
+    .app-mail.nav-open .sidebar { display: block; border: 0; border-bottom: 1px solid var(--border); }
+    .app-mail.nav-open .main { display: none; }
+    .sidebar .filters a, .sidebar .tree a { padding: 10px 8px; font-size: 15px; }
+    .main { display: block; }
+    .list { overflow: visible; border-bottom: 0; }
+    .pane { display: none; overflow: visible; padding: 12px 14px; }
+    .has-selection .list { display: none; }
+    .has-selection .pane { display: block; }
+    .back-link { display: inline-block; margin: 0 0 10px; font-size: 16px; }
+
+    /* list as cards: from + time, subject, tags */
+    .list table, .list tbody { display: block; }
+    .list thead { display: none; }
+    .list tbody tr { display: grid; grid-template-columns: 14px 1fr auto; gap: 2px 8px; align-items: center;
+                     padding: 10px 12px; border-bottom: 1px solid #eef0f3; }
+    .list td { display: block; padding: 0; border: 0; }
+    .list td.col-status { grid-column: 1; grid-row: 1; width: auto; padding: 0 !important; }
+    .list td.col-from { grid-column: 2; grid-row: 1; width: auto; font-weight: 600; }
+    .list td.col-time { grid-column: 3; grid-row: 1; width: auto; color: var(--muted); font-size: 12px; }
+    .list td.col-to { display: none; }
+    .list td.col-subject { grid-column: 2 / -1; grid-row: 2; white-space: normal; font-size: 15px; }
+    .list td.col-subject a { display: block; margin-top: 2px; }
+    .list td.empty { grid-column: 1 / -1; }
+    .pager { justify-content: space-between; padding: 12px; font-size: 14px; }
+
+    /* reading pane */
+    .message-head h1 { font-size: 17px; min-width: 0; flex-basis: 100%; }
+    .tabs { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+    .tabs button { white-space: nowrap; padding: 8px 12px; }
+    .kv th { white-space: normal; }
+    .facts { grid-template-columns: 1fr; }
+    iframe { min-height: 60vh; }
+
+    /* other pages: usable, wide tables scroll sideways */
+    .page { padding: 10px; gap: 12px; overflow: visible; }
+    .card { padding: 12px; overflow-x: auto; }
+    .flash { left: 8px; right: 8px; top: 64px; max-width: none; }
+}

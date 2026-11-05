@@ -20,9 +20,11 @@ $user   = session('user');
     <script src="<?= base_url('assets/app.js') ?>?v=<?= filemtime(FCPATH . 'assets/app.js') ?>" defer></script>
 </head>
 <body class="<?= ($user['role'] ?? '') === 'rw' ? 'role-rw' : 'role-ro' ?>">
-<div class="app <?= $active === 'messages' ? 'app-mail' : 'app-page' ?>">
+<div class="app <?= $active === 'messages' ? 'app-mail' : 'app-page' ?><?= ! empty($hasSelection) ? ' has-selection' : '' ?>">
     <header class="topbar">
         <a class="brand" href="<?= site_url('/') ?>"><img src="<?= base_url('assets/icon.png') ?>" alt="" class="brand-icon"><span class="brand-text"><?= lang('Ui.appName') ?></span></a>
+        <?php // smartphone: menu, user box and (mail view) sidebar behind the hamburger button ?>
+        <button type="button" class="nav-toggle" aria-label="<?= esc(lang('Ui.menu'), 'attr') ?>" aria-expanded="false">☰</button>
         <nav class="mainnav">
             <?php foreach ([
                 'dashboard' => ['dashboard', lang('Customers.navDashboard')],
