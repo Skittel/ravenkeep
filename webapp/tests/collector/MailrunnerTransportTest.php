@@ -100,11 +100,30 @@ final class MailrunnerTransportTest extends CIUnitTestCase
     }
 
     /** @param list<array{pattern: string, target: string, action: string}> $rules */
-    private function collect(FakeMailrunnerClient $client, array $rules = []): array
+    private function collect(FakeMailrunnerClient $client, array $rules = [], array $credentials = []): array
     {
         $collector = new Collector($this->db, $this->archive);
 
-        return [$collector->collectNode($this->node, new MailrunnerSpoolTransport($client, new SenderRules($rules))), $collector];
+        return [$collector->collectNode($this->node, new MailrunnerSpoolTransport($client, new SenderRules($rules), $credentials)), $collector];
+    }
+
+    public function testMessageWithSmtpLoginIsAcceptedAndMappedToTheLogin(): void
+    {
+        $known   = $this->message('mrm_auth1', [], 'whatever@nowhere.example');
+        $unknown = $this->message('mrm_auth2');
+        foreach ([[&$known, 'mrc_known'], [&$unknown, 'mrc_other']] as [&$m, $credential]) {
+            $m['message']['received_via'] = 'auth';
+            $m['message']['auth']         = ['credential_id' => $credential, 'service' => 'submission'];
+        }
+        unset($m);
+        $client = new FakeMailrunnerClient(['mrm_auth1' => $known, 'mrm_auth2' => $unknown]);
+
+        // no sender rule at all: a login does not need one
+        $this->collect($client, [], ['mrc_known' => 'pm10_ipmi_hq1_acme@customer.example']);
+
+        $this->seeInDatabase('messages', ['spool_id' => 'mrm_auth1', 'mode' => 'auth', 'status' => 'accepted',
+            'sasl_username' => 'pm10_ipmi_hq1_acme@customer.example', 'list_match_pattern' => null]);
+        $this->seeInDatabase('messages', ['spool_id' => 'mrm_auth2', 'mode' => 'auth', 'sasl_username' => 'mrc_other']);
     }
 
     public function testImportsMessageArchivesRawAndAcknowledges(): void

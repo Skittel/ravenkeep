@@ -2,7 +2,8 @@
 /**
  * @var list<array> $identities
  * @var list<string> $domains
- * @var array{username: string, password: string, sync: string, reset?: bool}|null $created
+ * @var array{id: int, username: string, password: string, reset?: bool}|null $created
+ * @var string $smtpHost SMTP server of the devices (MailRunner node)
  * @var array<string, string> $lastSeen
  * @var list<array> $devices all devices
  * @var array<int, list<string>> $identityTags fixed tags per login (E-024)
@@ -19,8 +20,8 @@ $post = static fn (string $url, string $label, ?string $confirm = null): string 
             <h1><?= empty($created['reset']) ? lang('Devices.createdTitle') : lang('Devices.resetTitle') ?></h1>
             <p class="notice"><?= lang('Devices.showOnce') ?></p>
             <table class="kv">
-                <tr><th><?= lang('Devices.server') ?></th><td><code><?= esc(config('Ravenkeep')->smtpHost) ?></code></td></tr>
-                <tr><th><?= lang('Devices.port') ?></th><td><code>587</code> (STARTTLS) <?= lang('Devices.or') ?> <code>465</code> (SSL/TLS)</td></tr>
+                <tr><th><?= lang('Devices.server') ?></th><td><code class="select"><?= esc($smtpHost) ?></code></td></tr>
+                <tr><th><?= lang('Devices.port') ?></th><td><code>587</code> (STARTTLS) <?= lang('Devices.or') ?> <code>465</code> (SSL/TLS)<?= lang('Devices.port25') ?></td></tr>
                 <tr><th><?= lang('Devices.username') ?></th><td><code class="select"><?= esc($created['username']) ?></code></td></tr>
                 <tr><th><?= lang('Devices.password') ?></th><td><code class="select secret"><?= esc($created['password']) ?></code></td></tr>
                 <tr><th><?= lang('Devices.sender') ?></th><td><code><?= esc($created['username']) ?></code> <span class="muted"><?= lang('Devices.senderHint') ?></span></td></tr>
@@ -33,7 +34,7 @@ $post = static fn (string $url, string $label, ?string $confirm = null): string 
     <section class="card">
         <h1><?= lang('Devices.title') ?></h1>
         <p class="hint"><?= lang('Devices.hint') ?></p>
-        <p class="notice"><?= lang('Devices.mailrunnerPending') ?></p>
+        <p class="hint"><?= lang('Devices.serverHint', [esc($smtpHost)]) ?></p>
         <?= form_open('devices', ['class' => 'rule-form']) ?>
             <label><?= lang('Devices.username') ?><input type="text" name="local_part" required maxlength="64" placeholder="pm10_ipmi_hq1_acme" class="code-input"></label>
             <label><?= lang('Senders.domain') ?><select name="domain">
@@ -46,6 +47,8 @@ $post = static fn (string $url, string $label, ?string $confirm = null): string 
                     <?php foreach ($devices as $fd): ?><option value="<?= (int) $fd['id'] ?>" <?= (int) $fd['id'] === $pre ? 'selected' : '' ?>><?= esc($fd['customer_name'] . ' – ' . $fd['name'] . ' (' . $fd['path'] . ')') ?></option><?php endforeach ?>
                 </select></label>
             <label><?= lang('Senders.note') ?><input type="text" name="note" maxlength="255"></label>
+            <label><?= lang('Devices.allowedNetworks') ?><input type="text" name="allowed_networks" maxlength="255" placeholder="<?= esc(lang('Devices.allowedNetworksHint'), 'attr') ?>"></label>
+            <label class="check"><input type="checkbox" name="plaintext_port25" value="1"> <?= lang('Devices.plaintext25') ?></label>
             <button type="submit" class="button button-primary"><?= lang('Devices.create') ?></button>
         <?= form_close() ?>
         <p class="hint"><?= lang('Devices.usernameHint') ?></p>
@@ -59,7 +62,9 @@ $post = static fn (string $url, string $label, ?string $confirm = null): string 
                 <tbody>
                 <?php foreach ($identities as $i): ?>
                     <tr class="<?= $i['enabled'] ? '' : 'disabled' ?>">
-                        <td><code><?= esc($i['username']) ?></code><?php if (! $i['enabled']): ?> <span class="badge badge-blocked"><?= lang('Devices.disabled') ?></span><?php endif ?></td>
+                        <td><code><?= esc($i['username']) ?></code><?php if (! $i['enabled']): ?> <span class="badge badge-blocked"><?= lang('Devices.disabled') ?></span><?php endif ?>
+                            <?php if ($i['credential_id'] === null): ?><br><span class="check-none"><?= lang('Devices.notOnMailrunner') ?></span><?php endif ?>
+                            <?php if ($i['plaintext_port25']): ?><br><span class="muted"><?= lang('Devices.plaintext25Short') ?></span><?php endif ?></td>
                         <td><?= $i['device_name'] ? esc($i['customer_name'] . ' – ' . $i['device_name']) : '<span class="muted">–</span>' ?></td>
                         <td><?php foreach ($identityTags[(int) $i['id']] ?? [] as $t): ?><span class="<?= rk_tag_class($t) ?>"><?= esc(rk_tag_label($t)) ?></span><?php endforeach ?></td>
                         <td><?= esc($i['note'] ?? '') ?></td>
@@ -67,7 +72,14 @@ $post = static fn (string $url, string $label, ?string $confirm = null): string 
                         <td><?= esc(rk_time($i['password_set_at'], 'd.m.Y H:i')) ?></td>
                         <td class="actions">
                             <a class="button write-only" href="<?= site_url('devices/' . $i['id']) ?>"><?= lang('Devices.editTags') ?></a>
-                            <?= $post('devices/' . $i['id'] . '/password', lang('Devices.newPassword'), lang('Devices.confirmPassword')) ?>
+                            <?php if ($i['credential_id'] === null): ?>
+                                <?= $post('devices/' . $i['id'] . '/register', lang('Devices.register'), lang('Devices.confirmRegister')) ?>
+                            <?php else: ?>
+                                <?= form_open('devices/' . $i['id'] . '/password', ['class' => 'inline', 'data-confirm' => lang('Devices.confirmPassword')]) ?>
+                                    <select name="grace" title="<?= esc(lang('Devices.graceHint'), 'attr') ?>"><option value="0"><?= lang('Devices.graceNone') ?></option><option value="86400"><?= lang('Devices.grace1d') ?></option><option value="604800"><?= lang('Devices.grace7d') ?></option></select>
+                                    <button type="submit" class="button"><?= lang('Devices.newPassword') ?></button>
+                                <?= form_close() ?>
+                            <?php endif ?>
                             <?= $post('devices/' . $i['id'] . '/toggle', $i['enabled'] ? lang('Rules.disable') : lang('Rules.enable')) ?>
                             <?= $post('devices/' . $i['id'] . '/delete', lang('Senders.delete'), lang('Devices.confirmDelete')) ?>
                         </td>

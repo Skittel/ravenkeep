@@ -24,9 +24,13 @@ class MailrunnerSpoolTransport implements SpoolTransport
     /** @var array<string, array<string, mixed>> MailRunner messages of the last listEntries() call */
     private array $messages = [];
 
+    /**
+     * @param array<string, string> $credentials credential_id => user name of the SMTP logins (T-21)
+     */
     public function __construct(
         private readonly MailrunnerClient $client,
         private readonly SenderRules $rules,
+        private readonly array $credentials = [],
     ) {
     }
 
@@ -108,6 +112,20 @@ class MailrunnerSpoolTransport implements SpoolTransport
             'auth'         => $check['auth'],
             'source'       => ['mailrunner_role' => $m['role'] ?? null, 'sha256' => $m['sha256'] ?? null],
         ];
+
+        // delivered with an SMTP login of the project (T-21): the login identifies the sender,
+        // no sender rules; the node reports the login as credential_id
+        if (($m['received_via'] ?? '') === 'auth') {
+            $credential            = (string) ($m['auth']['credential_id'] ?? '');
+            $meta['mode']          = 'auth';
+            $meta['sasl_username'] = $this->credentials[$credential] ?? $credential;
+            $meta['status']        = 'accepted';
+            $meta['auth_verdict']  = 'accepted';
+            $meta['reasons']       = [];
+            $meta['list_match']    = null;
+
+            return $meta;
+        }
 
         $class = $this->rules->classify([
             'envelope_sender'     => $meta['envelope']['sender'],

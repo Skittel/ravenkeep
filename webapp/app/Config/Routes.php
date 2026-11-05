@@ -28,6 +28,7 @@ $routes->get('devices/(:num)', 'Devices::edit/$1');
 $routes->post('devices/(:num)', 'Devices::save/$1');
 $routes->post('devices/(:num)/create', 'Devices::createPart/$1');
 $routes->post('devices/(:num)/password', 'Devices::password/$1');
+$routes->post('devices/(:num)/register', 'Devices::register/$1');
 $routes->post('devices/(:num)/toggle', 'Devices::toggle/$1');
 $routes->post('devices/(:num)/delete', 'Devices::delete/$1');
 $routes->get('settings', 'Settings::index');

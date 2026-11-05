@@ -5,12 +5,14 @@ namespace App\Controllers;
 use App\Libraries\Inventory\AddressService;
 use App\Libraries\Inventory\Inventory;
 use App\Libraries\Inventory\LoginTagSuggestion;
-use App\Libraries\Nodes\NodeConfigSync;
+use App\Libraries\Mailrunner\MailrunnerClient;
+use App\Libraries\Mailrunner\SmtpCredentials;
 use App\Libraries\Nodes\NodeSettings;
 use App\Libraries\Rules\RuleRunner;
 use CodeIgniter\Exceptions\PageNotFoundException;
 use CodeIgniter\HTTP\RedirectResponse;
 use InvalidArgumentException;
+use RuntimeException;
 
 /**
  * SMTP logins (SMTP AUTH on ports 587/465), one per component of a device (E-024): user name freely
@@ -44,24 +46,23 @@ class Devices extends BaseController
             'domains'    => array_column($db->table('local_domains')->select('domain')->orderBy('domain')->get()->getResultArray(), 'domain'),
             'created'    => $created,
             'lastSeen'   => $this->lastSeen(),
+            'smtpHost'   => (string) parse_url(config('Mailrunner')->url, PHP_URL_HOST),
         ]);
     }
 
     public function create(): RedirectResponse|string
     {
-        $db       = db_connect();
-        $settings = new NodeSettings($db);
-
         try {
-            [$id, $password] = $settings->createIdentity((string) $this->request->getPost('local_part'), (string) $this->request->getPost('domain'),
-                trim((string) $this->request->getPost('note')) ?: null, ((int) $this->request->getPost('device_id')) ?: null);
+            [$id, $password, $username] = $this->credentials()->create((string) $this->request->getPost('local_part'), (string) $this->request->getPost('domain'),
+                trim((string) $this->request->getPost('note')) ?: null, ((int) $this->request->getPost('device_id')) ?: null,
+                (bool) $this->request->getPost('plaintext_port25'), $this->networks());
         } catch (InvalidArgumentException $e) {
-            return redirect()->to(site_url('devices'))->with('error', lang('Devices.invalid_' . $e->getMessage()));
+            return redirect()->to(site_url('devices'))->with('error', $this->error($e));
+        } catch (RuntimeException $e) {
+            return redirect()->to(site_url('devices'))->with('error', lang('Devices.mailrunnerError', [$e->getMessage()]));
         }
-        $username = $db->table('smtp_identities')->select('username')->where('id', $id)->get()->getRow()->username;
-        (new RuleRunner($db))->bumpVersion();
 
-        return $this->index(['id' => $id, 'username' => $username, 'password' => $password, 'sync' => $this->sync()]);
+        return $this->index(['id' => $id, 'username' => $username, 'password' => $password]);
     }
 
     /** Edit a login: device, fixed tags, note – with the suggestion read from its name (E-024). */
@@ -92,6 +93,11 @@ class Devices extends BaseController
             (new NodeSettings(db_connect()))->setIdentity($id, ((int) $this->request->getPost('device_id')) ?: null,
                 preg_split('/[\s,]+/', (string) $this->request->getPost('tags'), -1, PREG_SPLIT_NO_EMPTY) ?: [],
                 trim((string) $this->request->getPost('note')) ?: null);
+            if ($this->request->getPost('options') !== null) { // full edit form (not "apply suggestion")
+                $this->credentials()->updateOptions($id, (bool) $this->request->getPost('plaintext_port25'), $this->networks());
+            }
+        } catch (RuntimeException $e) {
+            return redirect()->to(site_url('devices/' . $id))->with('error', lang('Devices.mailrunnerError', [$e->getMessage()]));
         } catch (InvalidArgumentException $e) {
             $key = 'Customers.invalid_' . $e->getMessage();
 
@@ -125,37 +131,80 @@ class Devices extends BaseController
             ->join('customers c', 'c.id = d.customer_id')->orderBy('c.name')->orderBy('d.name')->get()->getResultArray();
     }
 
+    /** New password from the node; the old one stays valid for the chosen grace period. */
     public function password(int $id): RedirectResponse|string
     {
         $row = db_connect()->table('smtp_identities')->where('id', $id)->get()->getRowArray();
         if ($row === null) {
             return redirect()->to(site_url('devices'));
         }
-        $password = (new NodeSettings(db_connect()))->resetPassword($id);
 
-        return $this->index(['username' => $row['username'], 'password' => $password, 'sync' => $this->sync(), 'reset' => true]);
+        return $this->withPassword($id, fn (SmtpCredentials $c) => $c->rotate($id, (int) $this->request->getPost('grace')), true);
+    }
+
+    /** Create a login from before MailRunner on the node. */
+    public function register(int $id): RedirectResponse|string
+    {
+        return $this->withPassword($id, static fn (SmtpCredentials $c) => $c->register($id), false);
     }
 
     public function toggle(int $id): RedirectResponse
     {
-        (new NodeSettings(db_connect()))->toggleIdentity($id);
-
-        return redirect()->to(site_url('devices'))->with('success', $this->sync());
+        return $this->change(static fn (SmtpCredentials $c) => $c->toggle($id), lang('Customers.saved'));
     }
 
     public function delete(int $id): RedirectResponse
     {
-        (new NodeSettings(db_connect()))->deleteIdentity($id);
-        (new RuleRunner(db_connect()))->bumpVersion();
-
-        return redirect()->to(site_url('devices'))->with('success', lang('Devices.deleted') . ' ' . $this->sync());
+        return $this->change(static fn (SmtpCredentials $c) => $c->delete($id), lang('Devices.deleted'));
     }
 
-    private function sync(): string
+    protected function credentials(): SmtpCredentials
     {
-        $errors = array_filter((new NodeConfigSync(db_connect()))->syncAll(), static fn ($r) => str_starts_with($r, 'error'));
+        return new SmtpCredentials(db_connect(), MailrunnerClient::fromConfig());
+    }
 
-        return $errors === [] ? lang('Senders.nodesUpdated') : lang('Senders.nodesError', [implode(', ', array_keys($errors))]);
+    private function withPassword(int $id, callable $fn, bool $reset): RedirectResponse|string
+    {
+        try {
+            $password = $fn($this->credentials());
+        } catch (InvalidArgumentException $e) {
+            return redirect()->to(site_url('devices'))->with('error', $this->error($e));
+        } catch (RuntimeException $e) {
+            return redirect()->to(site_url('devices'))->with('error', lang('Devices.mailrunnerError', [$e->getMessage()]));
+        }
+        $username = db_connect()->table('smtp_identities')->select('username')->where('id', $id)->get()->getRow()->username;
+
+        return $this->index(['id' => $id, 'username' => $username, 'password' => $password, 'reset' => $reset]);
+    }
+
+    private function change(callable $fn, string $success): RedirectResponse
+    {
+        try {
+            $fn($this->credentials());
+        } catch (InvalidArgumentException $e) {
+            return redirect()->to(site_url('devices'))->with('error', $this->error($e));
+        } catch (RuntimeException $e) {
+            return redirect()->to(site_url('devices'))->with('error', lang('Devices.mailrunnerError', [$e->getMessage()]));
+        }
+
+        return redirect()->to(site_url('devices'))->with('success', $success);
+    }
+
+    private function error(InvalidArgumentException $e): string
+    {
+        foreach (['Devices.invalid_', 'Customers.invalid_'] as $prefix) {
+            if (lang($prefix . $e->getMessage()) !== $prefix . $e->getMessage()) {
+                return lang($prefix . $e->getMessage());
+            }
+        }
+
+        return lang('Devices.mailrunnerError', [$e->getMessage()]);
+    }
+
+    /** @return list<string> */
+    private function networks(): array
+    {
+        return preg_split('/[\s,]+/', (string) $this->request->getPost('allowed_networks'), -1, PREG_SPLIT_NO_EMPTY) ?: [];
     }
 
     /**

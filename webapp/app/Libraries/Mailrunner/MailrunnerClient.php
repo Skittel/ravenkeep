@@ -7,7 +7,8 @@ use RuntimeException;
 /**
  * Minimal client for the MailRunner customer API (receive): https://wiki.skit.center/books/mailrunnerpub
  *
- * Only the calls Ravenkeep needs: list unacknowledged messages, fetch the original, acknowledge.
+ * Only the calls Ravenkeep needs: list unacknowledged messages, fetch the original, acknowledge,
+ * webhook, and the SMTP logins of the project (/v1/smtp-credentials, T-21).
  */
 class MailrunnerClient
 {
@@ -96,11 +97,71 @@ class MailrunnerClient
         $this->json('DELETE', '/v1/webhook');
     }
 
+    /** Host name of the node (devices use it as SMTP server). */
+    public function host(): string
+    {
+        return (string) parse_url($this->baseUrl, PHP_URL_HOST);
+    }
+
+    /**
+     * Create an SMTP login. The node generates the password and returns it only here.
+     *
+     * @param list<string> $allowedNetworks
+     *
+     * @return array{0: array<string, mixed>, 1: string} [credential, password]
+     */
+    public function createCredential(string $username, string $label, bool $plaintextPort25 = false, array $allowedNetworks = []): array
+    {
+        $body = ['username' => $username, 'label' => $label, 'plaintext_port25' => $plaintextPort25];
+        if ($allowedNetworks !== []) {
+            $body['allowed_networks'] = $allowedNetworks;
+        }
+        $result = $this->json('POST', '/v1/smtp-credentials', $body);
+
+        return [$result['data'] ?? [], (string) ($result['password'] ?? '')];
+    }
+
+    /** @return list<array<string, mixed>> */
+    public function credentials(): array
+    {
+        return $this->json('GET', '/v1/smtp-credentials')['data'] ?? [];
+    }
+
+    /** Change label, enabled, plaintext_port25 or allowed_networks. */
+    public function updateCredential(string $credentialId, array $fields): void
+    {
+        $this->json('PATCH', '/v1/smtp-credentials/' . rawurlencode($credentialId), $fields);
+    }
+
+    /** New password; the old one stays valid for $graceSeconds. Returns the new password. */
+    public function rotateCredential(string $credentialId, int $graceSeconds = 0): string
+    {
+        $result = $this->json('POST', '/v1/smtp-credentials/' . rawurlencode($credentialId) . '/rotate', ['grace_seconds' => max(0, min(604800, $graceSeconds))]);
+
+        return (string) ($result['password'] ?? '');
+    }
+
+    /** Delete (block) a login; an unknown one counts as deleted. */
+    public function deleteCredential(string $credentialId): void
+    {
+        [$code, $response] = $this->request('DELETE', '/v1/smtp-credentials/' . rawurlencode($credentialId));
+        if (($code < 200 || $code > 299) && $code !== 404) {
+            throw new RuntimeException("MailRunner DELETE credential: HTTP {$code} " . $this->errorText($response));
+        }
+    }
+
     /** @return array<string, mixed> */
     private function json(string $method, string $path, ?array $body = null): array
     {
         [$code, $response] = $this->request($method, $path, $body);
-        if ($code !== 200) {
+        if ($code === 204) {
+            return [];
+        }
+        if ($code < 200 || $code > 299) {
+            $error = json_decode($response, true)['error']['code'] ?? null;
+            if (is_string($error) && $error !== '') {
+                throw new MailrunnerApiError($error, "MailRunner {$method} {$path}: HTTP {$code} " . $this->errorText($response));
+            }
             throw new RuntimeException("MailRunner {$method} {$path}: HTTP {$code} " . $this->errorText($response));
         }
         $data = json_decode($response, true);

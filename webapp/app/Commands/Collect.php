@@ -7,6 +7,7 @@ use App\Libraries\Collector\LocalSpoolTransport;
 use App\Libraries\Collector\MailrunnerSpoolTransport;
 use App\Libraries\Mailrunner\CollectSignal;
 use App\Libraries\Mailrunner\MailrunnerClient;
+use App\Libraries\Mailrunner\SmtpCredentials;
 use App\Libraries\Mailrunner\Webhook;
 use App\Libraries\Nodes\NodeConfigSync;
 use App\Libraries\Rules\RuleRunner;
@@ -72,7 +73,7 @@ class Collect extends BaseCommand
             try {
                 $transport = match ($node['transport']) {
                     'local'      => new LocalSpoolTransport($node['spool_path']),
-                    'mailrunner' => new MailrunnerSpoolTransport(MailrunnerClient::fromConfig(), (new SenderRuleService($db))->rules()),
+                    'mailrunner' => new MailrunnerSpoolTransport(MailrunnerClient::fromConfig(), (new SenderRuleService($db))->rules(), SmtpCredentials::map($db)),
                     default => throw new \RuntimeException("Transport '{$node['transport']}' not implemented yet"),
                 };
                 $result = $collector->collectNode($node, $transport);

@@ -36,6 +36,9 @@ $suggestedTags = array_values(array_unique([...$own, ...$suggest['tags']]));
             <label><?= lang('Customers.device') ?><?= $deviceSelect($identity['device_id'] ? (int) $identity['device_id'] : null) ?></label>
             <label><?= lang('Senders.fixedTags') ?><input type="text" name="tags" autocomplete="off" value="<?= esc(implode(', ', $own), 'attr') ?>"<?= rk_tag_picker_attrs('multi', ['kunde', 'standort', 'geraet']) ?>></label>
             <label><?= lang('Senders.note') ?><input type="text" name="note" maxlength="255" value="<?= esc($identity['note'] ?? '', 'attr') ?>"></label>
+            <input type="hidden" name="options" value="1">
+            <label><?= lang('Devices.allowedNetworks') ?><input type="text" name="allowed_networks" maxlength="255" value="<?= esc($identity['allowed_networks'] ?? '', 'attr') ?>" placeholder="<?= esc(lang('Devices.allowedNetworksHint'), 'attr') ?>"></label>
+            <label class="check"><input type="checkbox" name="plaintext_port25" value="1" <?= $identity['plaintext_port25'] ? 'checked' : '' ?>> <?= lang('Devices.plaintext25') ?></label>
             <button type="submit" class="button button-primary"><?= lang('Rules.save') ?></button>
             <a class="button" href="<?= site_url('devices') ?>"><?= lang('Rules.cancel') ?></a>
         <?= form_close() ?>
