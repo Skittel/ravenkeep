@@ -3,6 +3,9 @@
 namespace App\Libraries\Nodes;
 
 use App\Libraries\Senders\SenderRules;
+use App\Libraries\Inventory\Inventory;
+use App\Libraries\Rules\RuleRunner;
+use App\Libraries\Rules\TagTypes;
 use CodeIgniter\Database\BaseConnection;
 use InvalidArgumentException;
 
@@ -63,6 +66,33 @@ class NodeSettings
         return [$id, $password, "{$device['path']}@" . strtolower(trim($domain))];
     }
 
+    /**
+     * Device and fixed tags of a login (E-024). The device supplies customer, location and device
+     * tags; the login adds its own (e.g. source:ipmi). Reserved types and unknown tag types are refused.
+     *
+     * @param list<string> $tags
+     */
+    public function setIdentity(int $id, ?int $deviceId, array $tags, ?string $note): void
+    {
+        if ($this->db->table('smtp_identities')->where('id', $id)->countAllResults() === 0) {
+            throw new InvalidArgumentException('identity');
+        }
+        if ($deviceId !== null && $this->db->table('devices')->where('id', $deviceId)->countAllResults() === 0) {
+            throw new InvalidArgumentException('device');
+        }
+        $names = Inventory::validTags($tags);
+        (new TagTypes($this->db))->assertKnown($names);
+        $runner = new RuleRunner($this->db);
+        $this->db->transStart();
+        $this->db->table('smtp_identities')->where('id', $id)->update(['device_id' => $deviceId, 'note' => $note, 'updated_at' => gmdate('Y-m-d H:i:s')]);
+        $this->db->table('smtp_identity_tags')->where('identity_id', $id)->delete();
+        foreach ($names as $name) {
+            $this->db->table('smtp_identity_tags')->insert(['identity_id' => $id, 'tag_id' => $runner->tagId($name)]);
+        }
+        $this->db->transComplete();
+        $runner->bumpVersion();
+    }
+
     /** Set a new generated password. Returns the plain password (shown once). */
     public function resetPassword(int $id): string
     {
@@ -104,7 +134,7 @@ class NodeSettings
     {
         $localPart = strtolower(trim($localPart));
         $domain    = strtolower(trim($domain));
-        if (! preg_match('/^[a-z0-9](?:[a-z0-9._+-]{0,62}[a-z0-9])?$/', $localPart) || str_contains($localPart, '..')) {
+        if (! preg_match('/^[a-z0-9](?:[a-z0-9._+-]{0,62}[a-z0-9])?$/', $localPart) || str_contains($localPart, '..')) { // "_" allowed: pm10_ipmi_hq1_acme (E-024)
             throw new InvalidArgumentException('local_part');
         }
         if ($this->db->table('local_domains')->where('domain', $domain)->countAllResults() === 0) {

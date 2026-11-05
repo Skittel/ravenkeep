@@ -31,6 +31,10 @@ message that matters, or the one that never arrived, is easily missed.
   naming the device (`server71@plesk.example`). Recipient and sender
   complement each other. An allowed sender can also carry fixed tags
   (e.g. `source:site24x7`), so no extra rule is needed.
+- **SMTP logins per component** – devices without a fixed IP send with a
+  login; one login per component (e.g. IPMI, hypervisor, backup of one
+  server), linked to the device and carrying fixed tags. "Capture tags"
+  suggests device and tags once from a scheme-style user name.
 - **Missing-report detection** – expected reports per device and task
   (e.g. daily backup, weekly garbage collection) raise an alert when absent.
 - **Actions** – e.g. create or update a ticket in Zammad via API, without

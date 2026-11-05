@@ -280,17 +280,23 @@ class Inventory
     }
 
     /**
-     * Tags per SMTP login (lower-case user name), used when messages are evaluated.
+     * Tags per SMTP login (lower-case user name), used when messages are evaluated: the tags of its
+     * device and its own tags (E-024). Every login is listed, also one without tags.
      *
      * @return array<string, list<string>>
      */
     public function tagsBySmtpLogin(): array
     {
-        $logins = $this->db->table('smtp_identities')->select('username, device_id')->where('device_id IS NOT NULL')->get()->getResultArray();
-        $map    = $this->deviceTagMap(array_map('intval', array_column($logins, 'device_id')));
+        $logins = $this->db->table('smtp_identities')->select('id, username, device_id')->get()->getResultArray();
+        $map    = $this->deviceTagMap(array_map('intval', array_filter(array_column($logins, 'device_id'))));
+        $own    = [];
+        foreach ($this->db->table('smtp_identity_tags st')->select('st.identity_id, t.name')->join('tags t', 't.id = st.tag_id')->get()->getResultArray() as $row) {
+            $own[(int) $row['identity_id']][] = $row['name'];
+        }
         $result = [];
         foreach ($logins as $login) {
-            $result[strtolower($login['username'])] = $map[(int) $login['device_id']] ?? [];
+            // device tags plus the login's own tags (E-024)
+            $result[strtolower($login['username'])] = array_values(array_unique([...($map[(int) $login['device_id']] ?? []), ...($own[(int) $login['id']] ?? [])]));
         }
 
         return $result;

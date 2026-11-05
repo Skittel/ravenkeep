@@ -42,9 +42,10 @@ class Customers extends BaseController
         if ($customer === null) {
             throw PageNotFoundException::forPageNotFound();
         }
-        $devices = $db->table('devices d')->select('d.*, l.name AS location_name, p.name AS profile_name, s.username AS login, s.enabled AS login_enabled')
+        // several SMTP logins per device (E-024): listed together
+        $devices = $db->table('devices d')->select("d.*, l.name AS location_name, p.name AS profile_name,
+                (SELECT GROUP_CONCAT(s.username ORDER BY s.username SEPARATOR ', ') FROM smtp_identities s WHERE s.device_id = d.id) AS login, 1 AS login_enabled", false)
             ->join('locations l', 'l.id = d.location_id', 'left')->join('timeout_profiles p', 'p.id = d.timeout_profile_id', 'left')
-            ->join('smtp_identities s', 's.device_id = d.id', 'left')
             ->where('d.customer_id', $id)->orderBy('l.name')->orderBy('d.name')->get()->getResultArray();
         $inventory = $this->inventory();
 

@@ -172,12 +172,14 @@ class RuleRunner
     {
         $out    = ['device' => [], 'address' => [], 'sender' => [], 'unknown' => null, 'sender_unknown' => null, 'sender_unverified' => null];
         $device = [];
+        $login  = false;
         if ($message['mode'] === 'auth' && ! empty($message['sasl_username'])) {
             $this->loginTags ??= (new Inventory($this->db, $this))->tagsBySmtpLogin();
+            $login  = array_key_exists(strtolower($message['sasl_username']), $this->loginTags);
             $device = $this->loginTags[strtolower($message['sasl_username'])] ?? [];
         }
 
-        if ($device === []) { // an SMTP login device always wins
+        if (! $login && $device === []) { // a known SMTP login always wins: its fixed tags, no addresses read (E-024)
             $this->addressKnown ??= (new Inventory($this->db, $this))->addressLookup();
             $recipient = $this->recipientResult($message);
             $sender    = $this->senderResult($message, $out);
