@@ -66,6 +66,28 @@ class SmtpCredentials
         return [$id, $password, $username];
     }
 
+    /**
+     * Login for a component of a device (decision E-025): the user name is built from the stable parts
+     * only – customer, device code, component – e.g. acme.pm10.ipmi@customer.example; device and
+     * source:<component> are set right away. A move never makes the name wrong.
+     *
+     * @param list<string> $networks
+     *
+     * @return array{0: int, 1: string, 2: string} [id, password, user name]
+     */
+    public function createForDevice(int $deviceId, string $component, string $domain, ?string $note, bool $plaintextPort25 = false, array $networks = []): array
+    {
+        $device = $this->db->table('devices')->select('path')->where('id', $deviceId)->get()->getRowArray() ?? throw new InvalidArgumentException('device');
+        $component = strtolower(trim($component));
+        if ($this->db->table('tags')->where('name', 'source:' . $component)->countAllResults() === 0) {
+            throw new InvalidArgumentException('component'); // components are known sources (no typos)
+        }
+        [$id, $password, $username] = $this->create($device['path'] . '.' . $component, $domain, $note, $deviceId, $plaintextPort25, $networks);
+        (new NodeSettings($this->db))->setIdentity($id, $deviceId, ['source:' . $component], $note);
+
+        return [$id, $password, $username];
+    }
+
     /** Create a login from before MailRunner on the node (same user name). Returns the new password. */
     public function register(int $id): string
     {

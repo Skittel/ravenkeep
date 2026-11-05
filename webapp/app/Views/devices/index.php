@@ -6,6 +6,7 @@
  * @var string $smtpHost SMTP server of the devices (MailRunner node)
  * @var array<string, string> $lastSeen
  * @var list<array> $devices all devices
+ * @var list<string> $components known sources (source:<x>) as components of a login (E-025)
  * @var array<int, list<string>> $identityTags fixed tags per login (E-024)
  */
 $this->setData(['active' => 'devices', 'title' => lang('Devices.title')]);
@@ -35,23 +36,53 @@ $post = static fn (string $url, string $label, ?string $confirm = null): string 
         <h1><?= lang('Devices.title') ?></h1>
         <p class="hint"><?= lang('Devices.hint') ?></p>
         <p class="hint"><?= lang('Devices.serverHint', [esc($smtpHost)]) ?></p>
-        <?= form_open('devices', ['class' => 'rule-form']) ?>
-            <label><?= lang('Devices.username') ?><input type="text" name="local_part" required maxlength="64" placeholder="pm10_ipmi_hq1_acme" class="code-input"></label>
-            <label><?= lang('Senders.domain') ?><select name="domain">
-                <?php foreach ($domains as $d): ?><option value="<?= esc($d, 'attr') ?>" <?= str_starts_with($d, 'customer.') ? 'selected' : '' ?>><?= esc($d) ?></option><?php endforeach ?>
+        <?php
+        $domainSelect = static function () use ($domains): string {
+            $html = '<select name="domain">';
+            foreach ($domains as $d) {
+                $html .= '<option value="' . esc($d, 'attr') . '"' . (str_starts_with($d, 'customer.') ? ' selected' : '') . '>' . esc($d) . '</option>';
+            }
+
+            return $html . '</select>';
+        };
+        $deviceOptions = static function (bool $optional) use ($devices): string {
+            $pre  = (int) service('request')->getGet('device');
+            $html = $optional ? '<option value="">' . esc(lang('Devices.deviceLater')) . '</option>' : '<option value="">' . esc(lang('Devices.chooseDevice')) . '</option>';
+            foreach ($devices as $fd) {
+                $html .= '<option value="' . (int) $fd['id'] . '"' . ((int) $fd['id'] === $pre ? ' selected' : '') . '>' . esc($fd['customer_name'] . ' – ' . $fd['name'] . ' (' . $fd['path'] . ')') . '</option>';
+            }
+
+            return $html;
+        };
+        $options = '<label>' . lang('Senders.note') . '<input type="text" name="note" maxlength="255"></label>'
+            . '<label>' . lang('Devices.allowedNetworks') . '<input type="text" name="allowed_networks" maxlength="255" placeholder="' . esc(lang('Devices.allowedNetworksHint'), 'attr') . '"></label>'
+            . '<label class="check"><input type="checkbox" name="plaintext_port25" value="1"> ' . lang('Devices.plaintext25') . '</label>';
+        ?>
+        <?= form_open('devices', ['class' => 'rule-form write-only']) ?>
+            <input type="hidden" name="mode" value="device">
+            <label><?= lang('Customers.device') ?><select name="device_id" required><?= $deviceOptions(false) ?></select></label>
+            <label><?= lang('Devices.component') ?><select name="component" required>
+                <option value=""><?= lang('Devices.chooseComponent') ?></option>
+                <?php foreach ($components as $c): ?><option value="<?= esc($c, 'attr') ?>"><?= esc($c) ?></option><?php endforeach ?>
             </select></label>
-            <label><?= lang('Customers.device') ?>
-                <select name="device_id">
-                    <option value=""><?= lang('Devices.deviceLater') ?></option>
-                    <?php $pre = (int) service('request')->getGet('device'); ?>
-                    <?php foreach ($devices as $fd): ?><option value="<?= (int) $fd['id'] ?>" <?= (int) $fd['id'] === $pre ? 'selected' : '' ?>><?= esc($fd['customer_name'] . ' – ' . $fd['name'] . ' (' . $fd['path'] . ')') ?></option><?php endforeach ?>
-                </select></label>
-            <label><?= lang('Senders.note') ?><input type="text" name="note" maxlength="255"></label>
-            <label><?= lang('Devices.allowedNetworks') ?><input type="text" name="allowed_networks" maxlength="255" placeholder="<?= esc(lang('Devices.allowedNetworksHint'), 'attr') ?>"></label>
-            <label class="check"><input type="checkbox" name="plaintext_port25" value="1"> <?= lang('Devices.plaintext25') ?></label>
+            <label><?= lang('Senders.domain') ?><?= $domainSelect() ?></label>
+            <?= $options ?>
             <button type="submit" class="button button-primary"><?= lang('Devices.create') ?></button>
         <?= form_close() ?>
         <p class="hint"><?= lang('Devices.usernameHint') ?></p>
+        <details class="custom-login write-only">
+            <summary><?= lang('Devices.customTitle') ?></summary>
+            <p class="hint"><?= lang('Devices.customHint') ?></p>
+            <?= form_open('devices', ['class' => 'rule-form']) ?>
+                <input type="hidden" name="mode" value="custom">
+                <label><?= lang('Devices.username') ?><input type="text" name="local_part" required maxlength="64" placeholder="backup-script" class="code-input"></label>
+                <label><?= lang('Senders.domain') ?><?= $domainSelect() ?></label>
+                <label><?= lang('Customers.device') ?><select name="device_id"><?= $deviceOptions(true) ?></select></label>
+                <?= $options ?>
+                <button type="submit" class="button"><?= lang('Devices.create') ?></button>
+            <?= form_close() ?>
+        </details>
+
 
         <?php if ($identities === []): ?>
             <p class="muted"><?= lang('Devices.none') ?></p>

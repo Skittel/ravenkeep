@@ -246,6 +246,9 @@ table.devices code { font-size: 11px; }
 .reveal { border: 1px solid var(--border); background: #fff; border-radius: 4px; padding: 3px 7px; cursor: pointer; font-size: 15px; line-height: 1; }
 .reveal.active { background: var(--sel); border-color: var(--accent); }
 
+.custom-login { margin: 6px 0 12px; }
+.custom-login summary { cursor: pointer; color: var(--muted); font-size: 13px; }
+
 /* --- Smartphone (0.3.19): mail list first, a message is its own page, menu and tags behind the hamburger --- */
 .nav-toggle, .back-link { display: none; }
 @media (max-width: 760px) {

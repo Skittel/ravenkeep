@@ -44,6 +44,8 @@ class Devices extends BaseController
                 ->orderBy('s.username')->get()->getResultArray(),
             'identityTags' => $tags,
             'devices'    => $this->devices(),
+            'components' => array_map(static fn (string $n): string => substr($n, 7),
+                array_column($db->table('tags')->select('name')->like('name', 'source:', 'after')->orderBy('name')->get()->getResultArray(), 'name')),
             'domains'    => array_column($db->table('local_domains')->select('domain')->orderBy('domain')->get()->getResultArray(), 'domain'),
             'created'    => $created,
             'lastSeen'   => $this->lastSeen(),
@@ -54,9 +56,14 @@ class Devices extends BaseController
     public function create(): RedirectResponse|string
     {
         try {
-            [$id, $password, $username] = $this->credentials()->create((string) $this->request->getPost('local_part'), (string) $this->request->getPost('domain'),
-                trim((string) $this->request->getPost('note')) ?: null, ((int) $this->request->getPost('device_id')) ?: null,
-                (bool) $this->request->getPost('plaintext_port25'), $this->networks());
+            $note = trim((string) $this->request->getPost('note')) ?: null;
+            [$id, $password, $username] = $this->request->getPost('mode') === 'custom'
+                // exception: free user name, device optional
+                ? $this->credentials()->create((string) $this->request->getPost('local_part'), (string) $this->request->getPost('domain'), $note,
+                    ((int) $this->request->getPost('device_id')) ?: null, (bool) $this->request->getPost('plaintext_port25'), $this->networks())
+                // normal case (E-025): customer.device.component
+                : $this->credentials()->createForDevice((int) $this->request->getPost('device_id'), (string) $this->request->getPost('component'),
+                    (string) $this->request->getPost('domain'), $note, (bool) $this->request->getPost('plaintext_port25'), $this->networks());
         } catch (InvalidArgumentException $e) {
             return redirect()->to(site_url('devices'))->with('error', $this->error($e));
         } catch (RuntimeException $e) {
@@ -137,7 +144,9 @@ class Devices extends BaseController
         $identity = $db->table('smtp_identities')->where('id', $id)->get()->getRowArray() ?? throw PageNotFoundException::forPageNotFound();
 
         try {
-            (new AddressService($db, new RuleRunner($db)))->create($identity['username'], (string) $this->request->getPost('kind'), (string) $this->request->getPost('value'));
+            // path form customer.device.component (E-025): give the address service the scheme form for the customer
+            $address = preg_replace('/^([a-z0-9-]+)\.([a-z0-9-]+)\.([a-z0-9-]+)@/', '$2_$3_$1@', $identity['username']);
+            (new AddressService($db, new RuleRunner($db)))->create($address, (string) $this->request->getPost('kind'), (string) $this->request->getPost('value'));
         } catch (InvalidArgumentException $e) {
             $key = 'Customers.invalid_' . $e->getMessage();
 

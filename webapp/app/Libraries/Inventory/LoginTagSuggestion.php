@@ -21,6 +21,23 @@ final class LoginTagSuggestion
      */
     public static function suggest(string $username, array $known): array
     {
+        // path form of E-025: customer.device.component
+        $local = strtolower(substr($username, 0, (int) strrpos($username, '@')) ?: $username);
+        if (preg_match('/^([a-z0-9-]+)\.([a-z0-9-]+)\.([a-z0-9-]+)$/', $local, $m)) {
+            $unknown = [];
+            if (! in_array($m[1], $known['customers'] ?? [], true)) {
+                $unknown[] = ['part' => AddressTags::CUSTOMER, 'value' => $m[1]];
+            } elseif (! in_array($m[1] . '.' . $m[2], $known['devices'] ?? [], true)) {
+                $unknown[] = ['part' => AddressTags::DEVICE, 'value' => $m[2]];
+            }
+            if (! in_array($m[3], $known['sources'] ?? [], true)) {
+                $unknown[] = ['part' => AddressTags::SOURCE, 'value' => $m[3]];
+            }
+
+            return ['device' => $unknown === [] ? $m[1] . '.' . $m[2] : null, 'tags' => $unknown === [] ? ['source:' . $m[3]] : [],
+                'unknown' => $unknown, 'customer' => $m[1], 'scheme' => true];
+        }
+
         $split  = AddressTags::split($username);
         $result = AddressTags::resolve($username, $known);
         $tags   = array_values(array_filter($result['tags'], static fn (string $t): bool

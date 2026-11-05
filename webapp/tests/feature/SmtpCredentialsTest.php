@@ -127,6 +127,34 @@ final class SmtpCredentialsTest extends CIUnitTestCase
         $this->dontSeeInDatabase('smtp_identities', ['id' => $id]);
     }
 
+    public function testLoginForADeviceComponent(): void
+    {
+        $runner    = new App\Libraries\Rules\RuleRunner($this->db);
+        $inventory = new App\Libraries\Inventory\Inventory($this->db, $runner);
+        $customer  = $inventory->createCustomer('acme', 'ACME', null);
+        $device    = $inventory->createDevice($customer, $inventory->createLocation($customer, 'hq1', 'HQ', null), 'pm10', 'PM10', null, []);
+        $this->db->table('tags')->insert(['name' => 'source:ipmi', 'created_at' => gmdate('Y-m-d H:i:s')]);
+
+        [$id, , $username] = $this->credentials->createForDevice($device, 'ipmi', 'customer.example.org', null);
+        $this->assertSame('acme.pm10.ipmi@customer.example.org', $username); // stable parts only, no location
+        $this->seeInDatabase('smtp_identities', ['id' => $id, 'device_id' => $device]);
+        $this->assertSame(['source:ipmi'], array_column($this->db->query('SELECT t.name FROM smtp_identity_tags st JOIN tags t ON t.id = st.tag_id WHERE st.identity_id = ?', [$id])->getResultArray(), 'name'));
+
+        // the suggestion reads the path form too
+        $s = App\Libraries\Inventory\LoginTagSuggestion::suggest($username, $inventory->addressLookup());
+        $this->assertSame(['acme.pm10', ['source:ipmi'], []], [$s['device'], $s['tags'], $s['unknown']]);
+        $this->assertSame([['part' => 'source', 'value' => 'pbs']], App\Libraries\Inventory\LoginTagSuggestion::suggest('acme.pm10.pbs@x.example', $inventory->addressLookup())['unknown']);
+
+        // components are known sources only: no typos
+        try {
+            $this->credentials->createForDevice($device, 'ipmy', 'customer.example.org', null);
+            $this->fail('typo accepted');
+        } catch (InvalidArgumentException $e) {
+            $this->assertSame('component', $e->getMessage());
+        }
+        $this->assertCount(1, $this->node->credentials);
+    }
+
     public function testErrorsOfTheNodeAndLegacyLogins(): void
     {
         $this->node->credentials['mrc_99'] = ['credential_id' => 'mrc_99', 'username' => 'taken@customer.example.org'];
