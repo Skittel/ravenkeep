@@ -20,6 +20,7 @@ return [
     'locationPlaceholder'   => 'z. B. Filiale 2',
     'createLocation'        => 'Standort anlegen',
     'confirmDeleteLocation' => 'Standort wirklich löschen?',
+    'devicesAndSenders'     => 'Geräte/Freigaben',
     'devices'               => 'Geräte',
     'device'                => 'Gerät',
     'devicePlaceholder'     => 'z. B. NAS05',

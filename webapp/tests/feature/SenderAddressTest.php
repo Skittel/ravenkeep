@@ -167,6 +167,26 @@ final class SenderAddressTest extends CIUnitTestCase
         $this->assertSame([['part' => 'conflict', 'value' => 'initech']], json_decode($this->row($conflict)['sender_unknown'], true));
     }
 
+    public function testFixedTagsOfTheAllowRule(): void
+    {
+        $this->senders->save('site24x7.example', 'header', 'allow', null, ['auth_check' => 'spf', 'tags' => ['source:site24x7', 'Status:Monitor']]);
+        $ok     = $this->addMessage('alerts@site24x7.example', true, false);
+        $failed = $this->addMessage('alerts@site24x7.example', false, true, 'inbox@other.example', 'x@bounce.example');
+        $this->senders->save('bounce.example', 'envelope', 'allow'); // accepts $failed, but the From rule's check fails
+        $this->runner->processBatch();
+
+        $this->assertSame(['source:site24x7', 'status:monitor'], $this->tags($ok));
+        $this->assertSame('sender', $this->db->query('SELECT source FROM message_tags WHERE message_id = ? LIMIT 1', [$ok])->getRow()->source);
+        $this->assertSame('accepted', $this->row($failed)['status']);
+        $this->assertSame([], $this->tags($failed));
+
+        // quick buttons keep the tags; reserved types are rejected
+        $this->senders->save('site24x7.example', 'header', 'allow');
+        $this->assertSame(2, $this->db->table('sender_rule_tags')->countAllResults());
+        $this->expectExceptionMessage('reserved_tag');
+        $this->senders->save('site24x7.example', 'header', 'allow', null, ['tags' => ['kunde:globex']]);
+    }
+
     public function testValidationAndPages(): void
     {
         foreach ([[['auth_check' => 'maybe'], 'check'], [['tag_customer_id' => $this->customer, 'tag_source' => 'plesk'], 'tag_meaning'],

@@ -66,7 +66,7 @@ return [
     'webhookLate' => 'Late collection',
     'webhookLateHint' => 'a message was only picked up by the minute run; the ping was missing or lost (last 24 h).',
     'check' => 'Check',
-    'checkHint' => 'Check per allow rule (E-021): what an allowed sender must pass, aligned with the From domain; otherwise the message is rejected. “No check” only applies if set explicitly – then anyone can forge this sender. Meaning for tags: the From domain stands for a customer (server77_plesk@domain = server77_plesk_CUSTOMER) or for a source, then the local part is the device (server71@plesk.example → source:plesk, device server71 of its customer).',
+    'checkHint' => 'Check per allow rule (E-021): what an allowed sender must pass, aligned with the From domain; otherwise the message is rejected. “No check” only applies if set explicitly – then anyone can forge this sender. Meaning for tags: the From domain stands for a customer (server77_plesk@domain = server77_plesk_CUSTOMER) or for a source, then the local part is the device (server71@plesk.example → source:plesk, device server71 of its customer). Fixed tags: accepted messages of this rule get them automatically (E-022), e.g. source:site24x7 – no rule needed.',
     'check_spf_or_dkim' => 'SPF or DKIM',
     'check_spf_and_dkim' => 'SPF and DKIM',
     'check_spf' => 'SPF only',
@@ -92,4 +92,5 @@ return [
     'invalid_tag_meaning' => 'Please choose either a customer or a source.',
     'invalid_customer' => 'Please choose a customer.',
     'invalid_source' => 'Invalid source (lower-case letters, digits, hyphen).',
+    'fixedTags' => 'Fixed tags',
 ];

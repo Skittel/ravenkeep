@@ -4,6 +4,7 @@ namespace App\Libraries\Rules;
 
 use App\Libraries\Inventory\Inventory;
 use App\Libraries\MessageReader;
+use App\Libraries\Senders\SenderRules;
 use CodeIgniter\Database\BaseConnection;
 use Throwable;
 
@@ -19,6 +20,7 @@ use Throwable;
  *   device  – tags of the sending device (SMTP login, or the device named by the address)
  *   address – tags from the recipient address of a domain with parse_address (E-016) and from the
  *             verified sender address of a domain with a tag meaning (E-020, E-021)
+ *   sender  – fixed tags of the matching sender allow rules (E-022)
  * Fixed rules always win: if a rule sets a tag of a type (e.g. kunde:), automatic tags of that
  * type are dropped.
  */
@@ -39,6 +41,9 @@ class RuleRunner
 
     /** @var array<string, mixed>|null known values for reading addresses (Inventory::addressLookup) */
     private ?array $addressKnown = null;
+
+    /** @var list<array{pattern: string, target: string, auth_check: string, tags: list<string>}>|null allow rules with fixed tags (E-022) */
+    private ?array $senderRuleTags = null;
 
     /** @var list<string>|null domains whose recipient addresses carry tags */
     private ?array $addressDomains = null;
@@ -63,6 +68,7 @@ class RuleRunner
         $this->pathTags       = null;
         $this->addressDomains = null;
         $this->addressKnown   = null;
+        $this->senderRuleTags = null;
     }
 
     /** Number of messages still waiting for (re-)evaluation. */
@@ -109,14 +115,14 @@ class RuleRunner
         $manualNames = array_column($manual, 'name');
 
         $auto = $message['status'] === 'accepted' ? $this->automaticTags($message, $manualNames)
-            : ['device' => [], 'address' => [], 'unknown' => null, 'sender_unknown' => null, 'sender_unverified' => null];
-        [$deviceTags, $addressTags] = [$auto['device'], $auto['address']];
+            : ['device' => [], 'address' => [], 'sender' => [], 'unknown' => null, 'sender_unknown' => null, 'sender_unverified' => null];
+        [$deviceTags, $addressTags, $senderTags] = [$auto['device'], $auto['address'], $auto['sender']];
         $update['address_unknown']   = $auto['unknown'] === null ? null : json_encode($auto['unknown'], JSON_THROW_ON_ERROR);
         $update['sender_unknown']    = $auto['sender_unknown'] === null ? null : json_encode($auto['sender_unknown'], JSON_THROW_ON_ERROR);
         $update['sender_unverified'] = $auto['sender_unverified'];
 
         $tags = $message['status'] === 'accepted'
-            ? $this->engine()->evaluate($message, $manualNames, [...$deviceTags, ...$addressTags])['tags'] : [];
+            ? $this->engine()->evaluate($message, $manualNames, [...$deviceTags, ...$addressTags, ...$senderTags])['tags'] : [];
 
         // Fixed rules win over automatic tags of the same type
         $ruleTypes = array_filter(array_map([TagName::class, 'type'], array_keys($tags)));
@@ -124,18 +130,22 @@ class RuleRunner
             $keep        = static fn (string $t): bool => ! in_array(TagName::type($t), $ruleTypes, true);
             $deviceTags  = array_values(array_filter($deviceTags, $keep));
             $addressTags = array_values(array_filter($addressTags, $keep));
+            $senderTags  = array_values(array_filter($senderTags, $keep));
         }
 
         $this->db->transStart();
-        $this->db->table('message_tags')->where('message_id', $message['id'])->whereIn('source', ['rule', 'device', 'address'])->delete();
+        $this->db->table('message_tags')->where('message_id', $message['id'])->whereIn('source', ['rule', 'device', 'address', 'sender'])->delete();
         foreach ($deviceTags as $name) {
             $this->db->table('message_tags')->insert(['message_id' => $message['id'], 'tag_id' => $this->tagId($name), 'source' => 'device']);
         }
         foreach ($addressTags as $name) {
             $this->db->table('message_tags')->insert(['message_id' => $message['id'], 'tag_id' => $this->tagId($name), 'source' => 'address']);
         }
+        foreach ($senderTags as $name) {
+            $this->db->table('message_tags')->insert(['message_id' => $message['id'], 'tag_id' => $this->tagId($name), 'source' => 'sender']);
+        }
         foreach ($tags as $name => $ruleId) {
-            if (in_array($name, $deviceTags, true) || in_array($name, $addressTags, true)) {
+            if (in_array($name, $deviceTags, true) || in_array($name, $addressTags, true) || in_array($name, $senderTags, true)) {
                 continue; // already set automatically
             }
             $this->db->table('message_tags')->insert([
@@ -154,11 +164,13 @@ class RuleRunner
      *
      * @param list<string> $manualNames
      *
-     * @return array{device: list<string>, address: list<string>, unknown: ?list<array>, sender_unknown: ?list<array>, sender_unverified: ?string}
+     * Plus the fixed tags of the allow rules the sender matches and passes (E-022).
+     *
+     * @return array{device: list<string>, address: list<string>, sender: list<string>, unknown: ?list<array>, sender_unknown: ?list<array>, sender_unverified: ?string}
      */
     private function automaticTags(array $message, array $manualNames): array
     {
-        $out    = ['device' => [], 'address' => [], 'unknown' => null, 'sender_unknown' => null, 'sender_unverified' => null];
+        $out    = ['device' => [], 'address' => [], 'sender' => [], 'unknown' => null, 'sender_unknown' => null, 'sender_unverified' => null];
         $device = [];
         if ($message['mode'] === 'auth' && ! empty($message['sasl_username'])) {
             $this->loginTags ??= (new Inventory($this->db, $this))->tagsBySmtpLogin();
@@ -193,8 +205,42 @@ class RuleRunner
 
         $out['device']  = array_values(array_diff(array_unique($device), $manualNames));
         $out['address'] = array_values(array_diff(array_unique($out['address']), $manualNames, $out['device']));
+        $out['sender']  = array_values(array_diff(array_unique($this->senderRuleTagsFor($message)), $manualNames, $out['device'], $out['address']));
 
         return $out;
+    }
+
+    /**
+     * Fixed tags of the allow rules whose sender (envelope or From, as set in the rule) matches and
+     * whose check the message passes (E-022). Only for checked (MX) messages.
+     *
+     * @return list<string>
+     */
+    private function senderRuleTagsFor(array $message): array
+    {
+        if ($message['mode'] !== 'mx') {
+            return [];
+        }
+        if ($this->senderRuleTags === null) {
+            $rows = $this->db->table('sender_rules r')->select('r.id, r.pattern, r.target, r.auth_check, t.name')
+                ->join('sender_rule_tags st', 'st.sender_rule_id = r.id')->join('tags t', 't.id = st.tag_id')
+                ->where('r.action', 'allow')->get()->getResultArray();
+            $rules = [];
+            foreach ($rows as $r) {
+                $rules[$r['id']] ??= ['pattern' => $r['pattern'], 'target' => $r['target'], 'auth_check' => $r['auth_check'], 'tags' => []];
+                $rules[$r['id']]['tags'][] = $r['name'];
+            }
+            $this->senderRuleTags = array_values($rules);
+        }
+        $tags = [];
+        foreach ($this->senderRuleTags as $rule) {
+            $sender = $rule['target'] === 'header' ? $message['header_from_address'] : $message['envelope_sender'];
+            if (SenderRules::addressMatches($sender, $rule['pattern']) && SenderTags::verified($rule, $message)) {
+                $tags = [...$tags, ...$rule['tags']];
+            }
+        }
+
+        return $tags;
     }
 
     /** Recipient address of a domain with parse_address, or a mapped one (E-016, E-019). */

@@ -20,6 +20,7 @@ return [
     'locationPlaceholder'   => 'e.g. Branch 2',
     'createLocation'        => 'Create location',
     'confirmDeleteLocation' => 'Really delete this location?',
+    'devicesAndSenders'     => 'Devices/senders',
     'devices'               => 'Devices',
     'device'                => 'Device',
     'devicePlaceholder'     => 'e.g. NAS05',

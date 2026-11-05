@@ -5,6 +5,8 @@
  * @var array<string, array> $observed what the senders of a rule passed (key pattern|target)
  * @var list<array> $customers
  * @var int $edit rule id in edit mode
+ * @var array<int, list<string>> $ruleTags fixed tags per rule (E-022)
+ * @var list<string> $tagNames
  */
 use App\Libraries\Senders\SenderRules;
 
@@ -15,7 +17,7 @@ $ruleForm = static function (string $pattern, string $target, string $action, st
         . '<button type="submit" class="button ' . $class . '">' . esc($label) . '</button>' . form_close();
 };
 // check and tag meaning of an allow rule (E-021)
-$settingsFields = static function (array $r) use ($customers): string {
+$settingsFields = static function (array $r, array $tags = []) use ($customers): string {
     $check = $r['auth_check'] ?? SenderRules::DEFAULT_CHECK;
     $kind  = ! empty($r['tag_customer_id']) ? 'customer' : (! empty($r['tag_source']) ? 'source' : '');
     $html  = '<label>' . lang('Senders.check') . '<select name="auth_check">';
@@ -32,7 +34,9 @@ $settingsFields = static function (array $r) use ($customers): string {
     }
 
     return $html . '</select></label><label>' . lang('Senders.tagSourceValue') . '<input type="text" name="tag_source" maxlength="64" class="code-input" placeholder="plesk" value="'
-        . esc($r['tag_source'] ?? '', 'attr') . '"></label>';
+        . esc($r['tag_source'] ?? '', 'attr') . '"></label>'
+        . '<label>' . lang('Senders.fixedTags') . '<input type="text" name="tags" autocomplete="off" placeholder="source:site24x7" value="'
+        . esc(implode(', ', $tags), 'attr') . '"' . rk_tag_picker_attrs('multi', ['kunde', 'standort', 'geraet']) . '></label>';
 };
 $observedText = static function (array $r) use ($observed): string {
     $o = $observed[$r['pattern'] . '|' . $r['target']] ?? null;
@@ -42,6 +46,7 @@ $observedText = static function (array $r) use ($observed): string {
 ?>
 <?= $this->extend('layout') ?>
 <?= $this->section('content') ?>
+<?= rk_tag_data($tagNames) ?>
 <div class="page">
     <section class="card">
         <h1><?= lang('Senders.pendingTitle') ?></h1>
@@ -112,7 +117,7 @@ $observedText = static function (array $r) use ($observed): string {
             <table class="grid">
                 <thead><tr>
                     <th><?= lang('Senders.action') ?></th><th><?= lang('Senders.pattern') ?></th><th><?= lang('Senders.target') ?></th>
-                    <th><?= lang('Senders.check') ?></th><th><?= lang('Senders.tagMeaning') ?></th>
+                    <th><?= lang('Senders.check') ?></th><th><?= lang('Customers.tags') ?></th>
                     <th><?= lang('Senders.note') ?></th><th><?= lang('Senders.created') ?></th><th></th>
                 </tr></thead>
                 <tbody>
@@ -125,7 +130,7 @@ $observedText = static function (array $r) use ($observed): string {
                                 <label><?= lang('Senders.action') ?><select name="action">
                                     <option value="allow"<?= $r['action'] === 'allow' ? ' selected' : '' ?>><?= lang('Senders.actionAllow') ?></option>
                                     <option value="block"<?= $r['action'] === 'block' ? ' selected' : '' ?>><?= lang('Senders.actionBlock') ?></option></select></label>
-                                <?= $settingsFields($r) ?>
+                                <?= $settingsFields($r, $ruleTags[(int) $r['id']] ?? []) ?>
                                 <label><?= lang('Senders.note') ?><input type="text" name="note" maxlength="255" value="<?= esc($r['note'] ?? '', 'attr') ?>"></label>
                                 <button type="submit" class="button button-primary"><?= lang('Rules.save') ?></button>
                                 <a class="button" href="<?= site_url('senders') ?>"><?= lang('Rules.cancel') ?></a>
@@ -143,7 +148,8 @@ $observedText = static function (array $r) use ($observed): string {
                             <br><span class="muted"><?= esc($observedText($r)) ?></span>
                         <?php endif ?></td>
                         <td><?php if ($r['customer_code'] !== null): ?><span class="<?= rk_tag_class('kunde:x') ?>"><?= esc(rk_tag_label('kunde:' . $r['customer_code'])) ?></span>
-                            <?php elseif ($r['tag_source'] !== null): ?><span class="<?= rk_tag_class('source:x') ?>"><?= esc(rk_tag_label('source:' . $r['tag_source'])) ?></span> <span class="muted">+ <?= lang('Senders.tagDevice') ?></span><?php endif ?></td>
+                            <?php elseif ($r['tag_source'] !== null): ?><span class="<?= rk_tag_class('source:x') ?>"><?= esc(rk_tag_label('source:' . $r['tag_source'])) ?></span> <span class="muted">+ <?= lang('Senders.tagDevice') ?></span><?php endif ?>
+                            <?php foreach ($ruleTags[(int) $r['id']] ?? [] as $t): ?><a class="<?= rk_tag_class($t) ?>" href="<?= site_url('/') ?>?tag%5B0%5D=<?= urlencode($t) ?>"><?= esc(rk_tag_label($t)) ?></a><?php endforeach ?></td>
                         <td><?= esc($r['note'] ?? '') ?></td>
                         <td><?= esc(rk_time($r['created_at'], 'd.m.Y H:i')) ?></td>
                         <td class="actions">

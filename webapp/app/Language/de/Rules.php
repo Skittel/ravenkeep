@@ -70,6 +70,7 @@ return [
     'op_has'           => 'ist vorhanden',
     'op_has_not'       => 'fehlt',
     'fromDevice' => 'automatisch vom Gerät',
+    'fromSender' => 'automatisch aus der Absender-Freigabe',
     'fromAddress' => 'automatisch aus der Empfängeradresse',
     'tags' => 'Tags',
 ];

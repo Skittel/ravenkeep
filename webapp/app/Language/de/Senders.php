@@ -66,7 +66,7 @@ return [
     'webhookLate' => 'Verspätete Abholung',
     'webhookLateHint' => 'eine Mail kam erst mit dem Minutenabruf, der Ping fehlte oder ging verloren (letzte 24 h).',
     'check' => 'Prüfung',
-    'checkHint' => 'Prüfung je Freigabe (E-021): was ein freigegebener Absender bestehen muss, jeweils passend zur From-Domain. Sonst wird die Mail abgelehnt. „Keine Prüfung“ gilt nur, wenn es ausdrücklich eingestellt ist – dann kann jeder diesen Absender fälschen. Bedeutung für Tags: Die From-Domain steht für einen Kunden (server77_plesk@domain = server77_plesk_KUNDE) oder für eine Quelle, dann ist der Teil vor dem @ das Gerät (server71@plesk.example → source:plesk, Gerät server71 des passenden Kunden).',
+    'checkHint' => 'Prüfung je Freigabe (E-021): was ein freigegebener Absender bestehen muss, jeweils passend zur From-Domain. Sonst wird die Mail abgelehnt. „Keine Prüfung“ gilt nur, wenn es ausdrücklich eingestellt ist – dann kann jeder diesen Absender fälschen. Bedeutung für Tags: Die From-Domain steht für einen Kunden (server77_plesk@domain = server77_plesk_KUNDE) oder für eine Quelle, dann ist der Teil vor dem @ das Gerät (server71@plesk.example → source:plesk, Gerät server71 des passenden Kunden). Feste Tags: Angenommene Mails dieser Freigabe bekommen sie automatisch (E-022), z. B. source:site24x7 – dafür braucht es keine Regel.',
     'check_spf_or_dkim' => 'SPF oder DKIM',
     'check_spf_and_dkim' => 'SPF und DKIM',
     'check_spf' => 'nur SPF',
@@ -92,4 +92,5 @@ return [
     'invalid_tag_meaning' => 'Bitte entweder Kunde oder Quelle wählen.',
     'invalid_customer' => 'Bitte einen Kunden wählen.',
     'invalid_source' => 'Ungültige Quelle (Kleinbuchstaben, Ziffern, Bindestrich).',
+    'fixedTags' => 'Feste Tags',
 ];

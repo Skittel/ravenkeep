@@ -34,7 +34,7 @@ $post = static fn (string $url, string $label, ?string $confirm = null): string 
             <span class="muted"><?= lang('Customers.tagCount', [count($tags), $total]) ?></span>
         </form>
         <table class="grid">
-            <thead><tr><th><?= lang('Customers.tag') ?></th><th class="num"><?= lang('Senders.messages') ?></th><th class="num"><?= lang('Customers.devices') ?></th>
+            <thead><tr><th><?= lang('Customers.tag') ?></th><th class="num"><?= lang('Senders.messages') ?></th><th class="num"><?= lang('Customers.devicesAndSenders') ?></th>
                 <th class="num"><?= lang('Rules.title') ?></th><th></th></tr></thead>
             <tbody>
             <?php foreach ($tags as $t): ?>

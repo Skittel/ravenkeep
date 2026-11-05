@@ -47,6 +47,12 @@ class Senders extends BaseController
             $observed[$o['pattern'] . '|' . $o['target']] = $o;
         }
 
+        // fixed tags per allow rule (E-022)
+        $ruleTags = [];
+        foreach ($db->table('sender_rule_tags st')->select('st.sender_rule_id, t.name')->join('tags t', 't.id = st.tag_id')->orderBy('t.name')->get()->getResultArray() as $t) {
+            $ruleTags[(int) $t['sender_rule_id']][] = $t['name'];
+        }
+
         return view('senders/index', [
             'pending'   => $pending,
             'rules'     => $db->table('sender_rules r')->select('r.*, c.name AS customer_name, c.code AS customer_code')
@@ -54,17 +60,20 @@ class Senders extends BaseController
             'observed'  => $observed,
             'customers' => $db->table('customers')->select('id, code, name')->orderBy('name')->get()->getResultArray(),
             'edit'      => (int) $this->request->getGet('edit'),
+            'ruleTags'  => $ruleTags,
+            'tagNames'  => array_column($db->table('tags')->select('name')->orderBy('name')->get()->getResultArray(), 'name'),
         ]);
     }
 
     public function save(): RedirectResponse
     {
-        $post = $this->request->getPost(['pattern', 'target', 'action', 'note', 'return_to', 'auth_check', 'tag_kind', 'tag_customer_id', 'tag_source']);
+        $post = $this->request->getPost(['pattern', 'target', 'action', 'note', 'return_to', 'auth_check', 'tag_kind', 'tag_customer_id', 'tag_source', 'tags']);
         // full form: check and tag meaning (E-021); quick buttons send neither and keep them
         $settings = $post['auth_check'] === null ? null : [
             'auth_check'      => (string) $post['auth_check'],
             'tag_customer_id' => $post['tag_kind'] === 'customer' ? ((int) $post['tag_customer_id'] ?: null) : null,
             'tag_source'      => $post['tag_kind'] === 'source' ? (string) $post['tag_source'] : null,
+            'tags'            => preg_split('/[\s,]+/', (string) $post['tags'], -1, PREG_SPLIT_NO_EMPTY) ?: [],
         ];
 
         try {
@@ -74,6 +83,7 @@ class Senders extends BaseController
             session()->setFlashdata('success', $message);
         } catch (InvalidArgumentException $e) {
             $key = 'Senders.invalid_' . $e->getMessage();
+            $key = lang($key) !== $key ? $key : 'Customers.invalid_' . $e->getMessage();
             session()->setFlashdata('error', lang($key) !== $key ? lang($key) : lang('Senders.invalid', [(string) $post['pattern']]));
         }
 

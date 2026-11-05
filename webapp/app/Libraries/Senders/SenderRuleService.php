@@ -2,6 +2,7 @@
 
 namespace App\Libraries\Senders;
 
+use App\Libraries\Inventory\Inventory;
 use App\Libraries\Rules\RuleRunner;
 use CodeIgniter\Database\BaseConnection;
 use InvalidArgumentException;
@@ -23,9 +24,9 @@ class SenderRuleService
     /**
      * Add or replace the rule for (pattern, target). Returns the number of reclassified messages.
      *
-     * @param array{auth_check?: string, tag_customer_id?: ?int, tag_source?: ?string}|null $settings
-     *        check and tag meaning (E-021); null keeps those of an existing rule (quick buttons),
-     *        a new rule gets the default check and no tag meaning
+     * @param array{auth_check?: string, tag_customer_id?: ?int, tag_source?: ?string, tags?: list<string>}|null $settings
+     *        check, tag meaning (E-021) and fixed tags (E-022); null keeps those of an existing rule
+     *        (quick buttons), a new rule gets the default check, no tag meaning and no tags
      */
     public function save(string $pattern, string $target, string $action, ?string $note = null, ?array $settings = null): int
     {
@@ -34,16 +35,29 @@ class SenderRuleService
             throw new InvalidArgumentException('Invalid target or action');
         }
         $data = ['action' => $action, 'note' => $note];
+        $tags = null;
         if ($settings !== null) {
             $data += $this->validSettings($action, $settings);
+            $tags = $action === 'allow' ? Inventory::validTags($settings['tags'] ?? []) : [];
         }
         $now      = gmdate('Y-m-d H:i:s');
         $existing = $this->db->table('sender_rules')->where(['pattern' => $pattern, 'target' => $target])->get()->getRowArray();
+        $this->db->transStart();
         if ($existing) {
-            $this->db->table('sender_rules')->where('id', $existing['id'])->update($data + ['updated_at' => $now]);
+            $id = (int) $existing['id'];
+            $this->db->table('sender_rules')->where('id', $id)->update($data + ['updated_at' => $now]);
         } else {
             $this->db->table('sender_rules')->insert($data + ['pattern' => $pattern, 'target' => $target, 'created_at' => $now, 'updated_at' => $now]);
+            $id = (int) $this->db->insertID();
         }
+        if ($tags !== null) {
+            $runner = new RuleRunner($this->db);
+            $this->db->table('sender_rule_tags')->where('sender_rule_id', $id)->delete();
+            foreach ($tags as $name) {
+                $this->db->table('sender_rule_tags')->insert(['sender_rule_id' => $id, 'tag_id' => $runner->tagId($name)]);
+            }
+        }
+        $this->db->transComplete();
         $this->bumpRules();
 
         return $this->reclassify($pattern, $target);

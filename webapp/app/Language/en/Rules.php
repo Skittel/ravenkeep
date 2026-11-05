@@ -70,6 +70,7 @@ return [
     'op_has'           => 'is present',
     'op_has_not'       => 'is missing',
     'fromDevice' => 'automatically from the device',
+    'fromSender' => 'automatically from the sender allow rule',
     'fromAddress' => 'automatically from the recipient address',
     'tags' => 'Tags',
 ];

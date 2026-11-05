@@ -29,7 +29,8 @@ message that matters, or the one that never arrived, is easily missed.
   the From domain. Its domain can stand for a customer
   (`device_source@customer-domain`) or for a source, with the local part
   naming the device (`server71@plesk.example`). Recipient and sender
-  complement each other.
+  complement each other. An allowed sender can also carry fixed tags
+  (e.g. `source:site24x7`), so no extra rule is needed.
 - **Missing-report detection** – expected reports per device and task
   (e.g. daily backup, weekly garbage collection) raise an alert when absent.
 - **Actions** – e.g. create or update a ticket in Zammad via API, without

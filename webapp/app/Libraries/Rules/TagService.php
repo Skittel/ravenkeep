@@ -27,7 +27,8 @@ class TagService
         $tags = $this->db->query('
             SELECT t.id, t.name,
                    (SELECT COUNT(*) FROM message_tags mt WHERE mt.tag_id = t.id) AS messages,
-                   (SELECT COUNT(*) FROM device_tags dt WHERE dt.tag_id = t.id) AS devices
+                   (SELECT COUNT(*) FROM device_tags dt WHERE dt.tag_id = t.id)
+                   + (SELECT COUNT(*) FROM sender_rule_tags st WHERE st.tag_id = t.id) AS devices
             FROM tags t ORDER BY t.name')->getResultArray();
         $ruleUse = $this->ruleUsage();
         foreach ($tags as &$tag) {
@@ -79,6 +80,7 @@ class TagService
             $to = (int) $target['id'];
             $this->db->query('INSERT IGNORE INTO message_tags (message_id, tag_id, source, rule_id) SELECT message_id, ?, source, rule_id FROM message_tags WHERE tag_id = ?', [$to, $id]);
             $this->db->query('INSERT IGNORE INTO device_tags (device_id, tag_id) SELECT device_id, ? FROM device_tags WHERE tag_id = ?', [$to, $id]);
+            $this->db->query('INSERT IGNORE INTO sender_rule_tags (sender_rule_id, tag_id) SELECT sender_rule_id, ? FROM sender_rule_tags WHERE tag_id = ?', [$to, $id]);
             $this->db->table('tags')->where('id', $id)->delete(); // remaining rows cascade
         } else {
             $this->db->table('tags')->where('id', $id)->update(['name' => $newName]);
