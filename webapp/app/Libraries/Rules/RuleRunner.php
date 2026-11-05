@@ -17,7 +17,8 @@ use Throwable;
  *
  * Automatic tags are set before the rules run, so rules can use them as conditions:
  *   device  – tags of the sending device (SMTP login, or the device named by the address)
- *   address – tags from the recipient address of a domain with parse_address (E-016)
+ *   address – tags from the recipient address of a domain with parse_address (E-016) and from the
+ *             verified sender address of a customer domain (E-020)
  * Fixed rules always win: if a rule sets a tag of a type (e.g. kunde:), automatic tags of that
  * type are dropped.
  */
@@ -107,8 +108,12 @@ class RuleRunner
             ->where(['mt.message_id' => $message['id'], 'mt.source' => 'manual'])->get()->getResultArray();
         $manualNames = array_column($manual, 'name');
 
-        [$deviceTags, $addressTags, $unknown] = $message['status'] === 'accepted' ? $this->automaticTags($message, $manualNames) : [[], [], null];
-        $update['address_unknown'] = $unknown === null ? null : json_encode($unknown, JSON_THROW_ON_ERROR);
+        $auto = $message['status'] === 'accepted' ? $this->automaticTags($message, $manualNames)
+            : ['device' => [], 'address' => [], 'unknown' => null, 'sender_unknown' => null, 'sender_unverified' => null];
+        [$deviceTags, $addressTags] = [$auto['device'], $auto['address']];
+        $update['address_unknown']   = $auto['unknown'] === null ? null : json_encode($auto['unknown'], JSON_THROW_ON_ERROR);
+        $update['sender_unknown']    = $auto['sender_unknown'] === null ? null : json_encode($auto['sender_unknown'], JSON_THROW_ON_ERROR);
+        $update['sender_unverified'] = $auto['sender_unverified'];
 
         $tags = $message['status'] === 'accepted'
             ? $this->engine()->evaluate($message, $manualNames, [...$deviceTags, ...$addressTags])['tags'] : [];
@@ -142,44 +147,114 @@ class RuleRunner
     }
 
     /**
-     * Device tags (SMTP login, or the device named or mapped by the recipient address) and address tags.
-     * Address tags only use known values (E-019); unknown parts are returned for the clearing list.
+     * Device tags (SMTP login, or the device named or mapped by the recipient or sender address) and
+     * address tags. Address tags only use known values (E-019); unknown parts are returned for the
+     * clearing list. Recipient (E-016) and verified sender (E-020) complement each other; if both are
+     * resolved but name a different customer or device, neither is used.
      *
      * @param list<string> $manualNames
      *
-     * @return array{0: list<string>, 1: list<string>, 2: list<array{part: string, value: string}>|null}
-     *         device tags, address tags, unknown parts (null if the address is resolved or not read)
+     * @return array{device: list<string>, address: list<string>, unknown: ?list<array>, sender_unknown: ?list<array>, sender_unverified: ?string}
      */
     private function automaticTags(array $message, array $manualNames): array
     {
+        $out    = ['device' => [], 'address' => [], 'unknown' => null, 'sender_unknown' => null, 'sender_unverified' => null];
         $device = [];
         if ($message['mode'] === 'auth' && ! empty($message['sasl_username'])) {
             $this->loginTags ??= (new Inventory($this->db, $this))->tagsBySmtpLogin();
             $device = $this->loginTags[strtolower($message['sasl_username'])] ?? [];
         }
 
-        $address   = [];
-        $unknown   = null;
-        $recipient = strtolower(trim((string) $message['envelope_recipient'], '<> '));
-        $domain    = substr((string) strrchr($recipient, '@'), 1);
-        $this->addressDomains ??= array_column($this->db->table('local_domains')->select('domain')->where('parse_address', 1)->get()->getResultArray(), 'domain');
-        $this->addressKnown   ??= (new Inventory($this->db, $this))->addressLookup();
-        $mapped = $this->addressKnown['map'][$recipient] ?? null;
-
-        if ($device === [] && ($mapped !== null || ($domain !== '' && in_array($domain, $this->addressDomains, true)))) {
-            $result  = AddressTags::resolve($recipient, $this->addressKnown, $mapped);
-            $address = $result['tags'];
-            $unknown = $result['unknown'] === [] ? null : $result['unknown'];
-            if ($result['device'] !== null) {
+        if ($device === []) { // an SMTP login device always wins
+            $this->addressKnown ??= (new Inventory($this->db, $this))->addressLookup();
+            $recipient = $this->recipientResult($message);
+            $sender    = $this->senderResult($message, $out);
+            if ($recipient !== null && $recipient['unknown'] !== []) {
+                $out['unknown'] = $recipient['unknown'];
+            }
+            if ($sender !== null && $sender['unknown'] !== []) {
+                $out['sender_unknown'] = $sender['unknown'];
+            }
+            $resolved = array_values(array_filter([$recipient, $sender], static fn ($r) => $r !== null && $r['unknown'] === []));
+            if (count($resolved) === 2 && ($conflict = self::conflict($resolved[0], $resolved[1])) !== null) {
+                $out['sender_unknown'] = [['part' => AddressTags::CONFLICT, 'value' => $conflict]];
+                $resolved              = [];
+            }
+            $path = null;
+            foreach ($resolved as $r) {
+                $out['address'] = [...$out['address'], ...$r['tags']];
+                $path ??= $r['device'];
+            }
+            if ($path !== null) {
                 $this->pathTags ??= (new Inventory($this->db, $this))->tagsByPath();
-                $device = $this->pathTags[$result['device']] ?? [];
+                $device = $this->pathTags[$path] ?? [];
             }
         }
 
-        $device  = array_values(array_diff(array_unique($device), $manualNames));
-        $address = array_values(array_diff(array_unique($address), $manualNames, $device));
+        $out['device']  = array_values(array_diff(array_unique($device), $manualNames));
+        $out['address'] = array_values(array_diff(array_unique($out['address']), $manualNames, $out['device']));
 
-        return [$device, $address, $unknown];
+        return $out;
+    }
+
+    /** Recipient address of a domain with parse_address, or a mapped one (E-016, E-019). */
+    private function recipientResult(array $message): ?array
+    {
+        $recipient = strtolower(trim((string) $message['envelope_recipient'], '<> '));
+        $domain    = substr((string) strrchr($recipient, '@'), 1);
+        $this->addressDomains ??= array_column($this->db->table('local_domains')->select('domain')->where('parse_address', 1)->get()->getResultArray(), 'domain');
+        $mapped = $this->addressKnown['map'][$recipient] ?? null;
+        if ($mapped === null && ($domain === '' || ! in_array($domain, $this->addressDomains, true))) {
+            return null;
+        }
+
+        return AddressTags::resolve($recipient, $this->addressKnown, $mapped);
+    }
+
+    /**
+     * Header From address of a customer domain (E-020), only for checked (MX) messages and only if SPF
+     * and DKIM pass for a domain of that customer; otherwise the reason is noted in $out.
+     * A single word without mapping (info@, stefan@) is a mailbox, not a device: ignored unless resolved.
+     */
+    private function senderResult(array $message, array &$out): ?array
+    {
+        $from = strtolower(trim((string) ($message['header_from_address'] ?? ''), '<> '));
+        if ($message['mode'] !== 'mx' || ! str_contains($from, '@')) {
+            return null;
+        }
+        $customer = SenderTags::customerOf(substr((string) strrchr($from, '@'), 1), $this->addressKnown['domains']);
+        if ($customer === null) {
+            return null;
+        }
+        $problems = SenderTags::verify(json_decode((string) $message['auth_details'], true) ?: null, $customer, $this->addressKnown['domains']);
+        if ($problems !== []) {
+            $out['sender_unverified'] = implode(' ', $problems);
+
+            return null;
+        }
+        $mapped = $this->addressKnown['map'][$from] ?? null;
+        $result = AddressTags::resolve(SenderTags::schemeAddress($from, $customer), $this->addressKnown, $mapped);
+        if ($result['unknown'] !== [] && $mapped === null && ! str_contains(substr($from, 0, (int) strrpos($from, '@')), '_')) {
+            return null;
+        }
+
+        return $result;
+    }
+
+    /** Description of the recipient side if recipient and sender name a different customer or device. */
+    private static function conflict(array $recipient, array $sender): ?string
+    {
+        // an address outside the scheme resolved by the map only has the device: customer = path prefix
+        $customer = static fn (array $r): ?string => ($k = preg_grep('/^kunde:/', $r['tags']))
+            ? substr((string) reset($k), 6) : ($r['device'] !== null ? explode('.', $r['device'])[0] : null);
+        if ($customer($recipient) !== $customer($sender)) {
+            return (string) $customer($recipient);
+        }
+        if ($recipient['device'] !== null && $sender['device'] !== null && $recipient['device'] !== $sender['device']) {
+            return $recipient['device'];
+        }
+
+        return null;
     }
 
     /** Id of a tag, created if necessary. */

@@ -62,6 +62,8 @@ $html = $reader?->htmlBody();
                 <?= form_close() ?>
                 <?php if ($m['status'] !== 'accepted'): ?><span class="hint"><?= lang('Rules.onlyAccepted') ?></span><?php endif ?>
                 <?php if (! empty($m['address_unknown'])): ?><span class="hint address-hint"><?= lang('Addresses.paneHint') ?>: <?= esc(implode(', ', array_map(static fn ($p) => lang('Addresses.part_' . $p['part'], [$p['value']]), json_decode($m['address_unknown'], true) ?: []))) ?> – <a href="<?= site_url('addresses') ?>"><?= lang('Addresses.paneLink') ?></a></span><?php endif ?>
+                <?php if (! empty($m['sender_unknown'])): ?><span class="hint address-hint"><?= lang('Addresses.senderHint') ?>: <?= esc(implode(', ', array_map(static fn ($p) => lang('Addresses.part_' . $p['part'], [$p['value']]), json_decode($m['sender_unknown'], true) ?: []))) ?> – <a href="<?= site_url('addresses') ?>"><?= lang('Addresses.paneLink') ?></a></span><?php endif ?>
+                <?php if (! empty($m['sender_unverified'])): ?><span class="hint address-hint"><?= lang('Addresses.senderUnverified') ?>: <?= esc(rk_sender_reason($m['sender_unverified'])) ?></span><?php endif ?>
             </div>
         </td></tr>
     </table>

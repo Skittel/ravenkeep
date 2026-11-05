@@ -1,18 +1,19 @@
 <?php
 /**
- * Unresolved recipient addresses and the address map (E-019).
+ * Unresolved recipient and sender addresses, unverified senders and the address map (E-019, E-020).
  *
  * @var list<array> $unknown
  * @var list<array> $mappings
+ * @var list<array> $unverified
  * @var list<array> $devices
  * @var int $backlog
  */
 use App\Libraries\Rules\AddressTags;
 
 $this->setData(['active' => 'addresses', 'title' => lang('Addresses.title')]);
-$create = static function (string $address, string $kind, string $value, string $label): string {
+$create = static function (array $u, string $kind, string $value, string $label): string {
     return form_open('addresses/create', ['class' => 'inline'])
-        . form_hidden(['address' => $address, 'kind' => $kind, 'value' => $value])
+        . form_hidden(['address' => $u['address'], 'kind' => $kind, 'value' => $value, 'direction' => $u['direction']])
         . '<button type="submit" class="button">' . esc(lang($label, [$value])) . '</button>' . form_close();
 };
 $byCustomer = [];
@@ -31,12 +32,13 @@ foreach ($devices as $d) {
             <p class="ok-text"><?= lang('Addresses.none') ?></p>
         <?php else: ?>
             <table class="grid addresses">
-                <thead><tr><th><?= lang('Addresses.address') ?></th><th class="num"><?= lang('Addresses.messages') ?></th><th><?= lang('Addresses.period') ?></th>
+                <thead><tr><th><?= lang('Addresses.address') ?></th><th><?= lang('Addresses.direction') ?></th><th class="num"><?= lang('Addresses.messages') ?></th><th><?= lang('Addresses.period') ?></th>
                     <th><?= lang('Addresses.problem') ?></th><th><?= lang('Addresses.actions') ?></th></tr></thead>
                 <tbody>
                 <?php foreach ($unknown as $u): ?>
                     <tr>
                         <td><code><?= esc($u['address']) ?></code><br><a class="muted" href="<?= site_url('/') ?>?q=<?= urlencode($u['address']) ?>&amp;id=<?= $u['last_id'] ?>"><?= lang('Addresses.showMessages') ?></a></td>
+                        <td><?= lang('Addresses.dir_' . $u['direction']) ?></td>
                         <td class="num"><?= $u['messages'] ?></td>
                         <td><?= esc(rk_time($u['first'], 'd.m. H:i')) ?><?= $u['first'] !== $u['last'] ? ' – ' . esc(rk_time($u['last'], 'd.m. H:i')) : '' ?></td>
                         <td><?php foreach ($u['unknown'] as $p): ?><div><?= esc(lang('Addresses.part_' . $p['part'], [$p['value']])) ?></div><?php endforeach ?></td>
@@ -44,19 +46,19 @@ foreach ($devices as $d) {
                             <div class="write-only">
                             <?php foreach ($u['unknown'] as $p): ?>
                                 <?php if ($p['part'] === AddressTags::CUSTOMER): ?>
-                                    <?= $create($u['address'], 'customer', $p['value'], 'Addresses.createCustomer') ?>
+                                    <?= $create($u, 'customer', $p['value'], 'Addresses.createCustomer') ?>
                                 <?php elseif ($p['part'] === AddressTags::DEVICE): ?>
-                                    <?= $create($u['address'], 'device', $p['value'], 'Addresses.createDevice') ?>
+                                    <?= $create($u, 'device', $p['value'], 'Addresses.createDevice') ?>
                                 <?php elseif ($p['part'] === AddressTags::LOCATION): ?>
-                                    <?= $create($u['address'], 'location', $p['value'], 'Addresses.createLocation') ?>
+                                    <?= $create($u, 'location', $p['value'], 'Addresses.createLocation') ?>
                                 <?php elseif ($p['part'] === AddressTags::SOURCE): ?>
-                                    <?= $create($u['address'], 'source', $p['value'], 'Addresses.createSource') ?>
+                                    <?= $create($u, 'source', $p['value'], 'Addresses.createSource') ?>
                                 <?php elseif ($p['part'] === AddressTags::DEVICE_OR_SOURCE): ?>
-                                    <?= $create($u['address'], 'device', $p['value'], 'Addresses.createDevice') ?>
-                                    <?= $create($u['address'], 'source', $p['value'], 'Addresses.createSource') ?>
+                                    <?= $create($u, 'device', $p['value'], 'Addresses.createDevice') ?>
+                                    <?= $create($u, 'source', $p['value'], 'Addresses.createSource') ?>
                                 <?php elseif ($p['part'] === AddressTags::LOCATION_OR_SOURCE): ?>
-                                    <?= $create($u['address'], 'location', $p['value'], 'Addresses.createLocation') ?>
-                                    <?= $create($u['address'], 'source', $p['value'], 'Addresses.createSource') ?>
+                                    <?= $create($u, 'location', $p['value'], 'Addresses.createLocation') ?>
+                                    <?= $create($u, 'source', $p['value'], 'Addresses.createSource') ?>
                                 <?php endif ?>
                             <?php endforeach ?>
                             <?php if ($devices !== []): ?>
@@ -84,6 +86,25 @@ foreach ($devices as $d) {
             </table>
         <?php endif ?>
     </section>
+
+    <?php if ($unverified !== []): ?>
+    <section class="card">
+        <h1><?= lang('Addresses.unverifiedTitle') ?></h1>
+        <p class="hint"><?= lang('Addresses.unverifiedHint') ?></p>
+        <table class="grid">
+            <thead><tr><th><?= lang('Addresses.address') ?></th><th class="num"><?= lang('Addresses.messages') ?></th><th><?= lang('Addresses.reason') ?></th></tr></thead>
+            <tbody>
+            <?php foreach ($unverified as $v): ?>
+                <tr>
+                    <td><code><?= esc($v['address']) ?></code><br><a class="muted" href="<?= site_url('/') ?>?q=<?= urlencode($v['address']) ?>&amp;id=<?= $v['last_id'] ?>"><?= lang('Addresses.showMessages') ?></a></td>
+                    <td class="num"><?= $v['messages'] ?></td>
+                    <td><?= esc(rk_sender_reason($v['reason'])) ?></td>
+                </tr>
+            <?php endforeach ?>
+            </tbody>
+        </table>
+    </section>
+    <?php endif ?>
 
     <section class="card">
         <h1><?= lang('Addresses.mappingsTitle') ?></h1>

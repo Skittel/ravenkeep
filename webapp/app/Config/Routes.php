@@ -43,6 +43,8 @@ $routes->post('customers', 'Customers::create');
 $routes->get('customers/(:num)', 'Customers::show/$1');
 $routes->post('customers/(:num)', 'Customers::update/$1');
 $routes->post('customers/(:num)/delete', 'Customers::delete/$1');
+$routes->post('customers/(:num)/domains', 'Customers::createDomain/$1');
+$routes->post('customers/(:num)/domains/(:num)/delete', 'Customers::deleteDomain/$1/$2');
 $routes->post('customers/(:num)/locations', 'Customers::createLocation/$1');
 $routes->post('customers/(:num)/locations/(:num)', 'Customers::updateLocation/$1/$2');
 $routes->post('customers/(:num)/locations/(:num)/delete', 'Customers::deleteLocation/$1/$2');

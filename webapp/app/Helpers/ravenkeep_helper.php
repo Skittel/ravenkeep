@@ -110,3 +110,17 @@ if (! function_exists('rk_tag_toggle')) {
         return ['tag' => $tags ?: null, 'page' => null, 'id' => null];
     }
 }
+
+if (! function_exists('rk_sender_reason')) {
+    /** Readable reason why a sender was not trusted ("spf:softfail dkim:none", E-020). */
+    function rk_sender_reason(string $reason): string
+    {
+        $out = [];
+        foreach (preg_split('/\s+/', trim($reason), -1, PREG_SPLIT_NO_EMPTY) ?: [] as $problem) {
+            $key   = 'Addresses.' . $problem;
+            $out[] = lang($key) !== $key ? lang($key) : lang('Addresses.spf', [substr($problem, 4)]);
+        }
+
+        return implode(', ', $out);
+    }
+}

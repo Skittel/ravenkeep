@@ -36,7 +36,7 @@ $user   = session('user');
                 'nodes'     => ['nodes', lang('Senders.navNodes')],
                 'settings'  => ['settings', lang('Devices.navSettings')],
             ] as $key => [$url, $label]): ?>
-                <?php $openAddresses ??= isset($user) ? (int) (db_connect()->query('SELECT COUNT(DISTINCT envelope_recipient) AS n FROM messages WHERE address_unknown IS NOT NULL')->getRow()->n ?? 0) : 0; ?>
+                <?php $openAddresses ??= isset($user) ? (new App\Libraries\Inventory\AddressService(db_connect(), new App\Libraries\Rules\RuleRunner(db_connect())))->countUnknown() : 0; ?>
                 <a href="<?= site_url($url) ?>" class="<?= $active === $key ? 'active' : '' ?>"><?= $label ?><?php if ($key === 'addresses' && $openAddresses > 0): ?> <span class="nav-count"><?= $openAddresses ?></span><?php endif ?></a>
             <?php endforeach ?>
         </nav>

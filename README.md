@@ -24,6 +24,9 @@ message that matters, or the one that never arrived, is easily missed.
   used (inventory and existing source tags); addresses with unknown parts are
   listed under "Addresses", where the missing value can be created or the
   address mapped to an existing device.
+- **Sender tags** – a sender of a customer's sender domain is read the same way
+  (`device_source@customer-domain`), but only if SPF and DKIM both pass for a
+  domain of that customer. Recipient and sender complement each other.
 - **Missing-report detection** – expected reports per device and task
   (e.g. daily backup, weekly garbage collection) raise an alert when absent.
 - **Actions** – e.g. create or update a ticket in Zammad via API, without

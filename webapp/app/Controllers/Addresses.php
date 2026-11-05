@@ -8,7 +8,7 @@ use CodeIgniter\HTTP\RedirectResponse;
 use InvalidArgumentException;
 
 /**
- * Unresolved recipient addresses and the address map (decision E-019).
+ * Unresolved recipient and sender addresses and the address map (decisions E-019, E-020).
  */
 class Addresses extends BaseController
 {
@@ -36,6 +36,7 @@ class Addresses extends BaseController
         return view('addresses/index', [
             'unknown'  => $service->unknown(),
             'mappings' => $service->mappings(),
+            'unverified' => $service->unverified(),
             'devices'  => $devices,
             'backlog'  => (new RuleRunner($db))->backlog(),
         ]);
@@ -44,7 +45,8 @@ class Addresses extends BaseController
     public function create(): RedirectResponse
     {
         return $this->change(fn (AddressService $s) => $s->create((string) $this->request->getPost('address'),
-            (string) $this->request->getPost('kind'), (string) $this->request->getPost('value')), 'created');
+            (string) $this->request->getPost('kind'), (string) $this->request->getPost('value'),
+            $this->request->getPost('direction') === 'from' ? 'from' : 'to'), 'created');
     }
 
     public function map(): RedirectResponse

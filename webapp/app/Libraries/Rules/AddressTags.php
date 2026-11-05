@@ -39,6 +39,8 @@ final class AddressTags
     public const DEVICE_OR_SOURCE   = 'device_or_source';
     public const LOCATION_OR_SOURCE = 'location_or_source';
     public const SCHEME             = 'scheme';
+    /** recipient and sender address name a different customer or device (E-020) */
+    public const CONFLICT           = 'conflict';
 
     /**
      * Split an address into customer and groups (levels general -> specific), without any lookup.
