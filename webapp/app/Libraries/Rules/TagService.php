@@ -60,6 +60,7 @@ class TagService
     }
 
     /** Rename a tag; rule actions and tag conditions using the old name are updated. */
+    /** Rename a tag; rules follow. If the new name exists already, both tags are merged. */
     public function rename(int $id, string $newName): void
     {
         $tag     = $this->find($id);
@@ -68,11 +69,17 @@ class TagService
         if ($newName === $tag['name']) {
             return;
         }
-        if ($this->db->table('tags')->where('name', $newName)->countAllResults() > 0) {
-            throw new InvalidArgumentException('tag_exists');
-        }
+        $target = $this->db->table('tags')->select('id')->where('name', $newName)->get()->getRowArray();
         $this->db->transStart();
-        $this->db->table('tags')->where('id', $id)->update(['name' => $newName]);
+        if ($target !== null) {
+            // the name exists already (e.g. a typo "sources:x" next to "source:x"): merge into it
+            $to = (int) $target['id'];
+            $this->db->query('INSERT IGNORE INTO message_tags (message_id, tag_id, source, rule_id) SELECT message_id, ?, source, rule_id FROM message_tags WHERE tag_id = ?', [$to, $id]);
+            $this->db->query('INSERT IGNORE INTO device_tags (device_id, tag_id) SELECT device_id, ? FROM device_tags WHERE tag_id = ?', [$to, $id]);
+            $this->db->table('tags')->where('id', $id)->delete(); // remaining rows cascade
+        } else {
+            $this->db->table('tags')->where('id', $id)->update(['name' => $newName]);
+        }
         $this->db->table('rule_actions')->where(['type' => 'add_tag', 'value' => $tag['name']])->update(['value' => $newName]);
         $this->db->table('rule_conditions')->where(['field' => 'tag', 'value' => $tag['name']])->update(['value' => $newName]);
         $this->db->transComplete();

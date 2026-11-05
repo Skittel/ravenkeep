@@ -42,13 +42,17 @@ final class RuleEngine
 
     /**
      * @param array<string, mixed> $message    message row (columns of the messages table)
-     * @param list<string>         $manualTags tags set manually on the message
+     * @param list<string>         $manualTags    tags set manually on the message
+     * @param list<string>         $automaticTags device and address tags; usable in conditions, and a
+     *                                            rule setting one of them claims it (fixed rules win)
      *
      * @return array{tags: array<string, int>, matched: list<int>} tags set by rules (name => rule id), matched rule ids
      */
-    public function evaluate(array $message, array $manualTags = []): array
+    public function evaluate(array $message, array $manualTags = [], array $automaticTags = []): array
     {
-        $current = array_fill_keys($manualTags, true);
+        // automatic tags (device, address) count for conditions, but a rule that sets one claims it
+        $current = array_fill_keys([...$manualTags, ...$automaticTags], true);
+        $manual  = array_fill_keys($manualTags, true);
         $added   = [];
         $matched = [];
 
@@ -58,7 +62,7 @@ final class RuleEngine
             }
             $matched[] = (int) $rule['id'];
             foreach ($rule['actions'] as $action) {
-                if ($action['type'] === 'add_tag' && ! isset($current[$action['value']])) {
+                if ($action['type'] === 'add_tag' && ! isset($manual[$action['value']]) && ! isset($added[$action['value']])) {
                     $current[$action['value']] = true;
                     $added[$action['value']]   = (int) $rule['id'];
                 }

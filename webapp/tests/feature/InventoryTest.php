@@ -178,6 +178,20 @@ final class InventoryTest extends CIUnitTestCase
         $this->assertSame(['geraet:acme.mh' => 'address', 'kunde:skit' => 'rule', 'standort:acme.branch2' => 'address'], $this->tagsOf($id));
     }
 
+    public function testRuleClaimsATagTheAddressAlsoSets(): void
+    {
+        $this->db->table('local_domains')->insert(['domain' => 'report.example.org', 'parse_address' => 1]);
+        (new RuleRepository($this->db, $this->runner))->save(null, 'Statuscake', 'all', false, true, [
+            ['field' => 'header_from', 'operator' => 'equals', 'value' => 'noreply@statuscake.example'],
+        ], ['source:statuscake']);
+
+        $id = $this->addMessage('a', ['mode' => 'mx', 'header_from_address' => 'noreply@statuscake.example',
+            'envelope_recipient' => 'statuscake_acme@report.example.org']);
+        $this->runner->processBatch();
+
+        $this->assertSame(['kunde:acme' => 'address', 'source:statuscake' => 'rule'], $this->tagsOf($id));
+    }
+
     public function testMonitoringMarksOverdueDevices(): void
     {
         $daily  = $this->inventory->createProfile('Daily', 24, null);
@@ -221,6 +235,16 @@ final class InventoryTest extends CIUnitTestCase
         } catch (InvalidArgumentException $e) {
             $this->assertSame('tag_in_rules', $e->getMessage());
         }
+        // renaming onto an existing tag merges both (typo "sources:" next to "source:")
+        $typo   = $tags->create('sources:statuscake');
+        $target = $tags->create('source:statuscake');
+        (new RuleRepository($this->db, $this->runner))->save(null, 's', 'all', false, true,
+            [['field' => 'header_from', 'operator' => 'equals', 'value' => 'noreply@statuscake.example']], ['sources:statuscake']);
+        $tags->rename($typo, 'source:statuscake');
+        $this->dontSeeInDatabase('tags', ['name' => 'sources:statuscake']);
+        $this->seeInDatabase('tags', ['id' => $target, 'name' => 'source:statuscake']);
+        $this->seeInDatabase('rule_actions', ['type' => 'add_tag', 'value' => 'source:statuscake']);
+
         $reserved = $this->runner->tagId('kunde:acme');
         $this->expectExceptionMessage('reserved_tag');
         $tags->rename($reserved, 'kunde:other');

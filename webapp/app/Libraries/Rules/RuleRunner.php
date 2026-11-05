@@ -110,7 +110,7 @@ class RuleRunner
         [$deviceTags, $addressTags] = $message['status'] === 'accepted' ? $this->automaticTags($message, $manualNames) : [[], []];
 
         $tags = $message['status'] === 'accepted'
-            ? $this->engine()->evaluate($message, [...$manualNames, ...$deviceTags, ...$addressTags])['tags'] : [];
+            ? $this->engine()->evaluate($message, $manualNames, [...$deviceTags, ...$addressTags])['tags'] : [];
 
         // Fixed rules win over automatic tags of the same type
         $ruleTypes = array_filter(array_map([TagName::class, 'type'], array_keys($tags)));
