@@ -19,6 +19,9 @@ message that matters, or the one that never arrived, is easily missed.
 - **Central archive** – original messages (EML) plus metadata, full-text search.
 - **Rules and tags** – free, combinable tags (e.g. `customer:x`, `type:nas`,
   `task:verify`, `status:error`) assigned by transparent rules.
+- **Address tags** – the recipient address `device_source_location_customer`
+  yields customer, location, source and device tags; with fewer groups the
+  inventory decides whether a part is a known device/location or a source.
 - **Missing-report detection** – expected reports per device and task
   (e.g. daily backup, weekly garbage collection) raise an alert when absent.
 - **Actions** – e.g. create or update a ticket in Zammad via API, without

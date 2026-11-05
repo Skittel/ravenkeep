@@ -122,9 +122,9 @@ final class InventoryTest extends CIUnitTestCase
     public function testAddressTagsForAcceptedMessagesOfMarkedDomains(): void
     {
         $this->db->table('local_domains')->insert(['domain' => 'report.example.org', 'parse_address' => 1]);
-        $this->inventory->createDevice($this->customer, $this->location, 'pm2610', 'PM2610', null, ['hersteller:dell']);
+        $this->inventory->createDevice($this->customer, $this->location, 'pm10', 'PM10', null, ['hersteller:dell']);
 
-        $known   = $this->addMessage('a', ['mode' => 'mx', 'envelope_recipient' => 'gc.pm2610_proxmox_2og.branch2_acme@report.example.org']);
+        $known   = $this->addMessage('a', ['mode' => 'mx', 'envelope_recipient' => 'gc.pm10_proxmox_2og.branch2_acme@report.example.org']);
         $unknown = $this->addMessage('b', ['mode' => 'mx', 'envelope_recipient' => 'nas09_other@report.example.org']);
         $pending = $this->addMessage('c', ['mode' => 'mx', 'status' => 'pending', 'envelope_recipient' => 'nas09_other@report.example.org']);
         $plain   = $this->addMessage('d', ['mode' => 'mx', 'envelope_recipient' => 'nas09_other@customer.example.org']);
@@ -132,15 +132,36 @@ final class InventoryTest extends CIUnitTestCase
 
         // known device: its own tags (source device) plus the remaining address tags
         $this->assertSame([
-            'geraet:acme.pm2610' => 'device', 'hersteller:dell' => 'device', 'kunde:acme' => 'device', 'meldung:gc' => 'address',
-            'standort:acme.branch2' => 'device', 'standort:acme.branch2.2og' => 'address', 'typ:proxmox' => 'address',
+            'geraet:acme.pm10' => 'device', 'hersteller:dell' => 'device', 'kunde:acme' => 'device', 'meldung:gc' => 'address',
+            'source:proxmox' => 'address', 'standort:acme.branch2' => 'device', 'standort:acme.branch2.2og' => 'address',
         ], $this->tagsOf($known));
-        // unknown device: new tags are created from the address
-        $this->assertSame(['geraet:other.nas09' => 'address', 'kunde:other' => 'address'], $this->tagsOf($unknown));
+        // unknown values: new tags are created from the address; 2 groups without a known device = source (E-018)
+        $this->assertSame(['kunde:other' => 'address', 'source:nas09' => 'address'], $this->tagsOf($unknown));
         $this->seeInDatabase('tags', ['name' => 'kunde:other']);
         // only accepted messages (E-002), only marked domains
         $this->assertSame([], $this->tagsOf($pending));
         $this->assertSame([], $this->tagsOf($plain));
+    }
+
+    public function testAddressIsReadWithKnownLocationsAndDevices(): void
+    {
+        $this->db->table('local_domains')->insert(['domain' => 'report.example.org', 'parse_address' => 1]);
+        $plesk = $this->addMessage('a', ['mode' => 'mx', 'envelope_recipient' => 'srv01_plesk_acme@report.example.org']);
+        $nas   = $this->addMessage('b', ['mode' => 'mx', 'envelope_recipient' => 'nas05_acme@report.example.org']);
+        $this->runner->processBatch();
+
+        $this->assertSame(['geraet:acme.srv01' => 'address', 'kunde:acme' => 'address', 'source:plesk' => 'address'], $this->tagsOf($plesk));
+        $this->assertSame(['kunde:acme' => 'address', 'source:nas05' => 'address'], $this->tagsOf($nas));
+
+        // a new location or device changes the reading of existing messages (rules version bumped)
+        $this->inventory->createLocation($this->customer, 'plesk', 'Plesk room', null);
+        $this->inventory->createDevice($this->customer, null, 'nas05', 'NAS05', null, []);
+        $this->runner->processBatch();
+
+        $this->assertArrayHasKey('standort:acme.plesk', $this->tagsOf($plesk));
+        $this->assertArrayNotHasKey('source:plesk', $this->tagsOf($plesk));
+        $this->assertArrayHasKey('geraet:acme.nas05', $this->tagsOf($nas));
+        $this->assertArrayNotHasKey('source:nas05', $this->tagsOf($nas));
     }
 
     public function testFixedRulesWinOverAutomaticTagsOfTheSameType(): void
@@ -151,10 +172,10 @@ final class InventoryTest extends CIUnitTestCase
         ], ['kunde:skit']);
 
         $id = $this->addMessage('a', ['mode' => 'mx', 'header_from_address' => 'alerts@mailhardener.example',
-            'envelope_recipient' => 'mh_hb_acme@report.example.org']);
+            'envelope_recipient' => 'mh_branch2_acme@report.example.org']);
         $this->runner->processBatch();
 
-        $this->assertSame(['geraet:acme.mh' => 'address', 'kunde:skit' => 'rule', 'standort:acme.hb' => 'address'], $this->tagsOf($id));
+        $this->assertSame(['geraet:acme.mh' => 'address', 'kunde:skit' => 'rule', 'standort:acme.branch2' => 'address'], $this->tagsOf($id));
     }
 
     public function testMonitoringMarksOverdueDevices(): void

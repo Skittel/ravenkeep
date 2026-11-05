@@ -5,28 +5,36 @@ namespace App\Libraries\Rules;
 use InvalidArgumentException;
 
 /**
- * Automatic tags from the recipient address (decision E-016).
+ * Automatic tags from the recipient address (decisions E-016, E-018).
  *
- * Local part = groups separated by "_", read from the right (general -> specific):
- *   2 groups: device_customer                      n-sight_skit
- *   3 groups: device_location_customer             nas05_hb_atc
- *   4 groups: device_type_location_customer        gc.pm2610_proxmox_2og.hb_atc
- * Inside a group "." separates levels, again from the right: "2og.hb" = location hb, level 2og;
- * "ve.proxmox" = type proxmox, subtype ve; "gc.pm2610" = device pm2610, sub-address gc.
+ * Local part = groups separated by "_", read from the right (general -> specific). The last group is
+ * always the customer. Which meaning the other groups have is decided with the inventory:
+ *   2 groups: X_customer          X is a device if the customer has a device with that code, else a source
+ *                                 n-sight_initech -> source n-sight; nas05_initech -> device nas05 (if in inventory)
+ *   3 groups: device_Y_customer   Y is a location if the customer has a location with that code, else a source
+ *                                 nas05_hq1_acme -> location hq1; srv01_plesk_globex -> source plesk
+ *   4 groups: device_source_location_customer (positions are unambiguous, unknown locations stay locations)
+ *                                 gc.pm10_proxmox_2og.hq1_acme
+ * Inside a group "." separates levels, again from the right: "2og.hq1" = location hq1, level 2og
+ * (only hq1 is looked up); "ve.proxmox" = source proxmox, subtype ve; "gc.pm10" = device pm10,
+ * sub-address gc (also "gc.n-sight" = source n-sight, sub-address gc).
  *
- * Tags of gc.pm2610_proxmox_2og.hb_atc:
- *   kunde:atc, standort:atc.hb, standort:atc.hb.2og, typ:proxmox, geraet:atc.pm2610, meldung:gc
- * The device is identified by customer + device code only (not by location or type).
+ * Tags of gc.pm10_proxmox_2og.hq1_acme:
+ *   kunde:acme, standort:acme.hq1, standort:acme.hq1.2og, source:proxmox, geraet:acme.pm10, meldung:gc
+ * The device is identified by customer + device code only (not by location or source).
  */
 final class AddressTags
 {
     private const LABEL = '/^[a-z0-9][a-z0-9-]{0,62}$/';
 
     /**
-     * @return array{customer: string, location: list<string>, type: list<string>, device: string, sub: list<string>}|null
+     * @param array{locations?: list<string>, devices?: list<string>} $known inventory: "customer.location"
+     *        codes and device paths "customer.device"
+     *
+     * @return array{customer: string, location: list<string>, source: list<string>, device: ?string, sub: list<string>}|null
      *         levels general -> specific; null if the address does not follow the scheme
      */
-    public static function parse(string $address): ?array
+    public static function parse(string $address, array $known = []): ?array
     {
         $local  = strtolower(trim(str_contains($address, '@') ? substr($address, 0, (int) strrpos($address, '@')) : $address, '<> '));
         $groups = explode('_', $local);
@@ -48,23 +56,39 @@ final class AddressTags
         if (count($customer) !== 1) {
             return null;
         }
-        $deviceGroup = array_shift($levels); // [device, sub..., ] general -> specific
-        $location    = count($levels) >= 1 ? array_pop($levels) : [];
-        $type        = count($levels) === 1 ? array_pop($levels) : [];
+        $c         = $customer[0];
+        $locations = array_flip($known['locations'] ?? []);
+        $devices   = array_flip($known['devices'] ?? []);
 
-        return [
-            'customer' => $customer[0],
-            'location' => $location,
-            'type'     => $type,
-            'device'   => $deviceGroup[0],
-            'sub'      => array_slice($deviceGroup, 1),
-        ];
+        $first  = array_shift($levels); // [device or source, sub...]
+        $result = ['customer' => $c, 'location' => [], 'source' => [], 'device' => $first[0], 'sub' => array_slice($first, 1)];
+
+        if ($levels === [] && ! isset($devices[$c . '.' . $first[0]])) {
+            $result['device'] = null;
+            $result['source'] = [$first[0]];
+        } elseif (count($levels) === 1) {
+            $middle = $levels[0];
+            if (isset($locations[$c . '.' . $middle[0]])) {
+                $result['location'] = $middle;
+            } else {
+                $result['source'] = $middle;
+            }
+        } elseif (count($levels) === 2) {
+            $result['source']   = $levels[0];
+            $result['location'] = $levels[1];
+        }
+
+        return $result;
     }
 
-    /** @return list<string> tags of an address (empty if it does not follow the scheme) */
-    public static function tags(string $address): array
+    /**
+     * @param array{locations?: list<string>, devices?: list<string>} $known see parse()
+     *
+     * @return list<string> tags of an address (empty if it does not follow the scheme)
+     */
+    public static function tags(string $address, array $known = []): array
     {
-        $p = self::parse($address);
+        $p = self::parse($address, $known);
         if ($p === null) {
             return [];
         }
@@ -73,10 +97,12 @@ final class AddressTags
         foreach (self::cumulative($p['location']) as $level) {
             $tags[] = 'standort:' . $c . '.' . $level;
         }
-        foreach (self::cumulative($p['type']) as $level) {
-            $tags[] = 'typ:' . $level;
+        foreach (self::cumulative($p['source']) as $level) {
+            $tags[] = 'source:' . $level;
         }
-        $tags[] = 'geraet:' . $c . '.' . $p['device'];
+        if ($p['device'] !== null) {
+            $tags[] = 'geraet:' . $c . '.' . $p['device'];
+        }
         foreach (self::cumulative($p['sub']) as $level) {
             $tags[] = 'meldung:' . $level;
         }
@@ -93,7 +119,7 @@ final class AddressTags
         return $valid;
     }
 
-    /** ["hb", "2og"] -> ["hb", "hb.2og"] */
+    /** ["hq", "2og"] -> ["hq", "hq.2og"] */
     private static function cumulative(array $levels): array
     {
         $out = [];

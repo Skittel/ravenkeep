@@ -50,5 +50,5 @@ return [
     'addressTags' => 'Address = device',
     'addressTagsOn' => 'yes',
     'addressTagsOff' => 'no',
-    'addressTagsHint' => 'With “yes” the recipient address yields tags automatically (E-016): device_customer, device_location_customer or device_type_location_customer; dots separate levels, e.g. gc.pm2610_proxmox_2og.hb_atc. Fixed rules take precedence.',
+    'addressTagsHint' => 'With “yes” the recipient address yields tags automatically (E-016/E-018). The last group is always the customer. x_customer: device if it is in the inventory, otherwise source. device_x_customer: location if the customer has it, otherwise source. device_source_location_customer. Dots separate levels, e.g. gc.pm10_proxmox_2og.hq1_acme. Fixed rules take precedence.',
 ];

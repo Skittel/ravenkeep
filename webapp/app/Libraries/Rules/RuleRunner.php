@@ -36,6 +36,9 @@ class RuleRunner
     /** @var array<string, list<string>>|null tags per device path */
     private ?array $pathTags = null;
 
+    /** @var array{locations: list<string>, devices: list<string>}|null inventory codes for reading addresses */
+    private ?array $addressKnown = null;
+
     /** @var list<string>|null domains whose recipient addresses carry tags */
     private ?array $addressDomains = null;
 
@@ -58,6 +61,7 @@ class RuleRunner
         $this->loginTags      = null;
         $this->pathTags       = null;
         $this->addressDomains = null;
+        $this->addressKnown   = null;
     }
 
     /** Number of messages still waiting for (re-)evaluation. */
@@ -156,9 +160,10 @@ class RuleRunner
         $domain    = substr((string) strrchr($recipient, '@'), 1);
         $this->addressDomains ??= array_column($this->db->table('local_domains')->select('domain')->where('parse_address', 1)->get()->getResultArray(), 'domain');
         if ($domain !== '' && in_array($domain, $this->addressDomains, true)) {
-            $address = AddressTags::tags($recipient);
-            $parsed  = AddressTags::parse($recipient);
-            if ($device === [] && $parsed !== null) {
+            $this->addressKnown ??= (new Inventory($this->db, $this))->addressLookup();
+            $address = AddressTags::tags($recipient, $this->addressKnown);
+            $parsed  = AddressTags::parse($recipient, $this->addressKnown);
+            if ($device === [] && $parsed !== null && $parsed['device'] !== null) {
                 $this->pathTags ??= (new Inventory($this->db, $this))->tagsByPath();
                 $device = $this->pathTags[$parsed['customer'] . '.' . $parsed['device']] ?? [];
             }

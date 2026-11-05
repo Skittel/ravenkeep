@@ -50,5 +50,5 @@ return [
     'addressTags' => 'Adresse = Gerät',
     'addressTagsOn' => 'ja',
     'addressTagsOff' => 'nein',
-    'addressTagsHint' => 'Bei „ja“ ergibt die Empfängeradresse automatisch Tags (E-016): gerät_kunde, gerät_standort_kunde oder gerät_typ_standort_kunde; Punkte trennen Unterebenen, z. B. gc.pm2610_proxmox_2og.hb_atc. Feste Regeln gehen vor.',
+    'addressTagsHint' => 'Bei „ja“ ergibt die Empfängeradresse automatisch Tags (E-016/E-018). Die letzte Gruppe ist immer der Kunde. x_kunde: Gerät, wenn es im Inventar steht, sonst source. gerät_x_kunde: Standort, wenn er beim Kunden eingetragen ist, sonst source. gerät_source_standort_kunde. Punkte trennen Unterebenen, z. B. gc.pm10_proxmox_2og.hq1_acme. Feste Regeln gehen vor.',
 ];

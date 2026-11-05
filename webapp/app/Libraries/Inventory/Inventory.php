@@ -85,8 +85,10 @@ class Inventory
         $now = gmdate('Y-m-d H:i:s');
         $this->db->table('locations')->insert(['customer_id' => $customerId, 'code' => $code, 'name' => self::validName($name),
             'note' => $note, 'created_at' => $now, 'updated_at' => $now]);
+        $id = (int) $this->db->insertID();
+        $this->runner->bumpVersion(); // addresses are read with the known locations (E-018)
 
-        return (int) $this->db->insertID();
+        return $id;
     }
 
     public function updateLocation(int $id, string $name, ?string $note): void
@@ -100,6 +102,7 @@ class Inventory
             throw new InvalidArgumentException('not_empty');
         }
         $this->db->table('locations')->where('id', $id)->delete();
+        $this->runner->bumpVersion();
     }
 
     // ------------------------------------------------------------------ Devices
@@ -221,6 +224,23 @@ class Inventory
         }
 
         return $names;
+    }
+
+    /**
+     * Known location codes ("customer.location") and device paths ("customer.device") for reading
+     * recipient addresses (AddressTags, E-018).
+     *
+     * @return array{locations: list<string>, devices: list<string>}
+     */
+    public function addressLookup(): array
+    {
+        $locations = $this->db->table('locations l')->select("CONCAT(c.code, '.', l.code) AS k", false)
+            ->join('customers c', 'c.id = l.customer_id')->get()->getResultArray();
+
+        return [
+            'locations' => array_column($locations, 'k'),
+            'devices'   => array_column($this->db->table('devices')->select('path')->get()->getResultArray(), 'path'),
+        ];
     }
 
     /**
