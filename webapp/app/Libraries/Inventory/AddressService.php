@@ -36,7 +36,7 @@ class AddressService
             ->whereIn('id', array_column($rows, 'last_id'))->get()->getResultArray() as $m) {
             $parts[$m['id']] = $m;
         }
-        $domains = (new Inventory($this->db, $this->runner))->addressLookup()['domains'];
+        $known = (new Inventory($this->db, $this->runner))->addressLookup();
 
         return array_map(static fn (array $r): array => [
             'direction' => $r['direction'],
@@ -45,7 +45,7 @@ class AddressService
             'first'     => $r['first'],
             'last'      => $r['last'],
             'last_id'   => (int) $r['last_id'],
-            'customer'  => self::customerOf($r['address'], $r['direction'], $domains),
+            'customer'  => self::customerOf($r['address'], $r['direction'], $known),
             'unknown'   => json_decode((string) ($parts[$r['last_id']][$r['direction'] === 'from' ? 'sender_unknown' : 'address_unknown'] ?? '[]'), true) ?: [],
         ], $rows);
     }
@@ -84,12 +84,25 @@ class AddressService
             'reason' => (string) ($reasons[$r['last_id']] ?? '')] + $r, $rows);
     }
 
-    /** Customer code of an address: the customer group of a recipient, the customer of a sender domain. */
-    private static function customerOf(string $address, string $direction, array $domains): ?string
+    /**
+     * Customer code of an address: the customer group of a recipient; for a sender the customer its
+     * domain stands for, or (source domain) the customer of the device found by its code.
+     */
+    private static function customerOf(string $address, string $direction, array $known): ?string
     {
-        return $direction === 'from'
-            ? SenderTags::customerOf(substr((string) strrchr($address, '@'), 1), $domains)
-            : (AddressTags::split($address)['customer'] ?? null);
+        if ($direction !== 'from') {
+            return AddressTags::split($address)['customer'] ?? null;
+        }
+        $rule = SenderTags::rule($address, $known['senders']);
+        if ($rule === null) {
+            return null;
+        }
+        if ($rule['customer'] !== null) {
+            return $rule['customer'];
+        }
+        $device = SenderTags::resolve($address, $rule, $known, $known['map'][$address] ?? null)['device'];
+
+        return $device === null ? null : explode('.', $device)[0];
     }
 
     /** @return list<array{id: int, address: string, device_id: int, path: string, device_name: string, customer_id: int, customer_name: string}> */
@@ -126,7 +139,7 @@ class AddressService
     public function create(string $address, string $kind, string $value, string $direction = 'to'): void
     {
         $inventory = new Inventory($this->db, $this->runner);
-        $customer  = self::customerOf(self::normalizeAddress($address), $direction, $inventory->addressLookup()['domains']);
+        $customer  = self::customerOf(self::normalizeAddress($address), $direction, $inventory->addressLookup());
         $code      = Inventory::normalizeCode($value);
 
         if ($kind === AddressTags::CUSTOMER) {

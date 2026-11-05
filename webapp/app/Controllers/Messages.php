@@ -115,11 +115,19 @@ class Messages extends BaseController
         }
 
         $node = db_connect()->table('nodes')->select('name')->where('id', $message['node_id'])->get()->getRowArray();
+        // check of the matching allow rule (E-021)
+        $listCheck = $message['list_match_pattern'] === null ? null : (db_connect()->table('sender_rules')->select('auth_check')
+            ->where(['pattern' => $message['list_match_pattern'], 'target' => $message['list_match_target'], 'action' => 'allow'])->get()->getRow()->auth_check ?? null);
+        $reasons = json_decode($message['reasons'] ?? '[]', true) ?: [];
+        if ($message['status'] === 'rejected' && $listCheck !== null && $listCheck !== 'spf_or_dkim') {
+            array_unshift($reasons, rk_sender_reason($listCheck));
+        }
 
         return view('messages/_pane', [
             'm'       => $message,
             'node'    => $node['name'] ?? '?',
-            'reasons' => json_decode($message['reasons'] ?? '[]', true) ?: [],
+            'reasons' => $reasons,
+            'listCheck' => $listCheck,
             'auth'    => json_decode($message['auth_details'] ?? 'null', true),
             'reader'  => $reader,
             'error'   => $error,

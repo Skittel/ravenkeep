@@ -2,77 +2,95 @@
 
 namespace App\Libraries\Rules;
 
+use App\Libraries\Senders\SenderRules;
+
 /**
- * Tags from the sender address (decision E-020).
+ * Tags from the sender address (decisions E-020, E-021).
  *
- * A customer can have sender domains (customer_domains). The domain stands for the customer code:
- *   server77_plesk@globex.example  is read like  server77_plesk_globex  (AddressTags::resolve)
- * The header From address is used, but only if the sender is verified: SPF and DKIM must both pass,
- * each for a domain of the same customer (exact domain, or a subdomain if the domain allows them).
- * Anyone can write any From address; this check makes sure it belongs to the checked domains.
- * The check only applies to sender addresses, never to recipient addresses.
+ * The meaning of a sender domain is set in its allow rule (page Senders):
+ *   customer: the domain stands for the customer code
+ *             server77_plesk@globex.example  is read like  server77_plesk_globex
+ *   source:   the domain stands for a source tag, the local part names the device, which is looked
+ *             up across all customers (device codes like server71 are expected to be unique)
+ *             server71@plesk.example  ->  source:plesk + device server71 of its customer
+ * The header From address is used, and only if it passes the check of that allow rule (SPF and/or
+ * DKIM aligned with the From domain, or none if set explicitly). Recipient addresses are never checked.
  */
 final class SenderTags
 {
     /**
-     * Customer code a domain belongs to.
+     * Most specific allow rule with a tag meaning that matches the sender (full address before domain,
+     * longer domain before shorter).
      *
-     * @param array<string, array{customer: string, subdomains: bool}> $domains customer domains
+     * @param list<array{pattern: string, auth_check: string, customer: ?string, source: ?string}> $senders
      */
-    public static function customerOf(string $domain, array $domains): ?string
+    public static function rule(string $from, array $senders): ?array
     {
-        $domain = strtolower(rtrim(trim($domain), '.'));
-        if ($domain === '') {
-            return null;
-        }
-        if (isset($domains[$domain])) {
-            return $domains[$domain]['customer'];
-        }
-        $labels = explode('.', $domain);
-        for ($i = 1, $n = count($labels); $i < $n - 1; $i++) {
-            $parent = implode('.', array_slice($labels, $i));
-            if (isset($domains[$parent]) && $domains[$parent]['subdomains']) {
-                return $domains[$parent]['customer'];
+        $best = null;
+        foreach ($senders as $rule) {
+            if (($rule['customer'] ?? null) === null && ($rule['source'] ?? null) === null) {
+                continue;
+            }
+            if (SenderRules::addressMatches($from, $rule['pattern'])) {
+                $rank = (str_contains($rule['pattern'], '@') ? 1000 : 0) + strlen($rule['pattern']);
+                if ($best === null || $rank > $best[0]) {
+                    $best = [$rank, $rule];
+                }
             }
         }
 
-        return null;
+        return $best[1] ?? null;
     }
 
     /**
-     * Check SPF and DKIM of a message for the customer of its sender.
+     * Read a sender address with the meaning of its rule.
      *
-     * @param array<string, mixed>|null                                $auth    auth_details of the message
-     * @param array<string, array{customer: string, subdomains: bool}> $domains
+     * @param array<string, mixed> $known        Inventory::addressLookup()
+     * @param string|null          $mappedDevice device path the address is mapped to
      *
-     * @return list<string> problems, e.g. ["spf:softfail", "dkim:none"]; empty = verified
-     *         spf:<result> | spf:foreign (pass for a domain of someone else)
-     *         dkim:none (no signature) | dkim:fail | dkim:foreign (valid signature of someone else)
+     * @return array{tags: list<string>, device: ?string, unknown: list<array{part: string, value: string}>}
      */
-    public static function verify(?array $auth, string $customer, array $domains): array
+    public static function resolve(string $from, array $rule, array $known, ?string $mappedDevice = null): array
     {
-        $problems = [];
-        $spf      = is_array($auth['spf'] ?? null) ? $auth['spf'] : [];
-        $result   = strtolower((string) ($spf['result'] ?? 'none')) ?: 'none';
-        if ($result !== 'pass') {
-            $problems[] = 'spf:' . preg_replace('/[^a-z]/', '', $result);
-        } elseif (self::customerOf((string) ($spf['domain'] ?? ''), $domains) !== $customer) {
-            $problems[] = 'spf:foreign';
+        $local = substr($from, 0, (int) strrpos($from, '@'));
+        if (($rule['customer'] ?? null) !== null) {
+            return AddressTags::resolve($local . '_' . $rule['customer'], $known, $mappedDevice);
         }
 
-        $signatures = is_array($auth['dkim'] ?? null) ? $auth['dkim'] : [];
-        $passed     = array_filter($signatures, static fn ($s): bool => is_array($s) && strtolower((string) ($s['result'] ?? '')) === 'pass');
-        $own        = array_filter($passed, static fn (array $s): bool => self::customerOf((string) ($s['domain'] ?? ''), $domains) === $customer);
-        if ($own === []) {
-            $problems[] = 'dkim:' . ($signatures === [] ? 'none' : ($passed === [] ? 'fail' : 'foreign'));
+        // source domain: find the customer by the device
+        if ($mappedDevice !== null) {
+            $customer = explode('.', $mappedDevice)[0];
+        } else {
+            $split = AddressTags::split($local . '_x');
+            if ($split === null) {
+                return ['tags' => [], 'device' => null, 'unknown' => [['part' => AddressTags::SCHEME, 'value' => '']]];
+            }
+            $code  = $split['groups'][0][0];
+            $paths = array_values(array_filter($known['devices'] ?? [], static fn (string $p): bool => str_ends_with($p, '.' . $code)
+                && substr_count($p, '.') === 1));
+            if (count($paths) !== 1) {
+                return ['tags' => [], 'device' => null, 'unknown' => [['part' => $paths === [] ? AddressTags::DEVICE : AddressTags::AMBIGUOUS, 'value' => $code]]];
+            }
+            $customer = explode('.', $paths[0])[0];
+        }
+        $result = AddressTags::resolve($local . '_' . $customer, $known, $mappedDevice);
+        if ($result['unknown'] === []) {
+            try {
+                $result['tags'][] = TagName::normalize('source:' . $rule['source']);
+            } catch (\InvalidArgumentException) {
+                // invalid source value: leave out
+            }
+            $result['tags'] = array_values(array_unique($result['tags']));
         }
 
-        return $problems;
+        return $result;
     }
 
-    /** "server77_plesk@globex.example" + "globex" -> "server77_plesk_globex" */
-    public static function schemeAddress(string $address, string $customer): string
+    /** Is the sender trusted: does the message pass the check of the rule? */
+    public static function verified(array $rule, array $message): bool
     {
-        return substr($address, 0, (int) strrpos($address, '@')) . '_' . $customer;
+        $auth = json_decode((string) ($message['auth_details'] ?? ''), true);
+
+        return SenderRules::passes($rule['auth_check'] ?? SenderRules::DEFAULT_CHECK, is_array($auth) ? $auth : null, $message['auth_verdict'] ?? null);
     }
 }

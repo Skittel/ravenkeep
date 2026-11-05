@@ -112,15 +112,11 @@ if (! function_exists('rk_tag_toggle')) {
 }
 
 if (! function_exists('rk_sender_reason')) {
-    /** Readable reason why a sender was not trusted ("spf:softfail dkim:none", E-020). */
-    function rk_sender_reason(string $reason): string
+    /** Readable reason why a sender was not trusted: the check of its allow rule (E-021). */
+    function rk_sender_reason(string $check): string
     {
-        $out = [];
-        foreach (preg_split('/\s+/', trim($reason), -1, PREG_SPLIT_NO_EMPTY) ?: [] as $problem) {
-            $key   = 'Addresses.' . $problem;
-            $out[] = lang($key) !== $key ? lang($key) : lang('Addresses.spf', [substr($problem, 4)]);
-        }
+        $key = 'Senders.check_' . $check;
 
-        return implode(', ', $out);
+        return lang('Senders.checkFailed', [lang($key) !== $key ? lang($key) : $check]);
     }
 }

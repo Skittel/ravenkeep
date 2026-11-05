@@ -113,6 +113,7 @@ class MailrunnerSpoolTransport implements SpoolTransport
             'envelope_sender'     => $meta['envelope']['sender'],
             'header_from_address' => $meta['headers']['from_address'],
             'auth_verdict'        => $meta['auth_verdict'],
+            'auth'                => $meta['auth'],
         ]);
         $meta['status']     = $class['status'];
         $meta['list_match'] = $class['list_match_pattern'] === null ? null

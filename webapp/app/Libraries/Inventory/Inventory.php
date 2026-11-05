@@ -76,40 +76,6 @@ class Inventory
         $this->runner->bumpVersion();
     }
 
-    // ------------------------------------------------------------------ Sender domains (E-020)
-
-    public static function normalizeDomain(string $domain): string
-    {
-        $domain = strtolower(rtrim(trim($domain), '.'));
-        if (strlen($domain) > 253 || ! preg_match('/^(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z][a-z0-9-]{0,61}[a-z0-9]$/', $domain)) {
-            throw new InvalidArgumentException('domain');
-        }
-
-        return $domain;
-    }
-
-    /** Sender domain of a customer; $subdomains: also all subdomains of it. */
-    public function addDomain(int $customerId, string $domain, bool $subdomains): int
-    {
-        $this->customer($customerId);
-        $domain = self::normalizeDomain($domain);
-        if ($this->db->table('customer_domains')->where('domain', $domain)->countAllResults() > 0) {
-            throw new InvalidArgumentException('domain_exists');
-        }
-        $this->db->table('customer_domains')->insert(['customer_id' => $customerId, 'domain' => $domain, 'subdomains' => $subdomains ? 1 : 0,
-            'created_at' => gmdate('Y-m-d H:i:s')]);
-        $id = (int) $this->db->insertID();
-        $this->runner->bumpVersion();
-
-        return $id;
-    }
-
-    public function deleteDomain(int $customerId, int $id): void
-    {
-        $this->db->table('customer_domains')->where(['id' => $id, 'customer_id' => $customerId])->delete();
-        $this->runner->bumpVersion();
-    }
-
     // ------------------------------------------------------------------ Locations
 
     public function createLocation(int $customerId, string $code, string $name, ?string $note): int
@@ -266,10 +232,10 @@ class Inventory
     /**
      * Known values for reading recipient addresses (AddressTags, E-019): customer codes, locations
      * ("customer.location"), device paths ("customer.device"), sources (values of "source:" tags) and
-     * the address map (address => device path) and the sender domains of the customers (E-020).
+     * the address map (address => device path) and the allow rules with a tag meaning (E-021).
      *
      * @return array{customers: list<string>, locations: list<string>, devices: list<string>, sources: list<string>, map: array<string, string>,
-     *     domains: array<string, array{customer: string, subdomains: bool}>}
+     *     senders: list<array{pattern: string, auth_check: string, customer: ?string, source: ?string}>}
      */
     public function addressLookup(): array
     {
@@ -280,10 +246,9 @@ class Inventory
             array_column($this->db->table('rule_actions')->select('value AS name')->where('type', 'add_tag')->like('value', 'source:', 'after')->get()->getResultArray(), 'name'),
         );
         $map     = $this->db->table('address_map a')->select('a.address, d.path')->join('devices d', 'd.id = a.device_id')->get()->getResultArray();
-        $domains = [];
-        foreach ($this->db->table('customer_domains cd')->select('cd.domain, cd.subdomains, c.code')->join('customers c', 'c.id = cd.customer_id')->get()->getResultArray() as $d) {
-            $domains[$d['domain']] = ['customer' => $d['code'], 'subdomains' => (bool) $d['subdomains']];
-        }
+        $senders = $this->db->table('sender_rules r')->select('r.pattern, r.auth_check, c.code AS customer, r.tag_source AS source')
+            ->join('customers c', 'c.id = r.tag_customer_id', 'left')->where('r.action', 'allow')
+            ->groupStart()->where('r.tag_customer_id IS NOT NULL')->orWhere('r.tag_source IS NOT NULL')->groupEnd()->get()->getResultArray();
 
         return [
             'customers' => array_column($this->db->table('customers')->select('code')->get()->getResultArray(), 'code'),
@@ -291,7 +256,7 @@ class Inventory
             'devices'   => array_column($this->db->table('devices')->select('path')->get()->getResultArray(), 'path'),
             'sources'   => array_values(array_unique(array_map(static fn (string $n): string => substr($n, strlen('source:')), $sources))),
             'map'       => array_column($map, 'path', 'address'),
-            'domains'   => $domains,
+            'senders'   => $senders,
         ];
     }
 

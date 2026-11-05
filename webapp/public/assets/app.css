@@ -235,3 +235,4 @@ table.devices code { font-size: 11px; }
 .address-hint { color: var(--pending); }
 /* narrower screens: icon only, so the ten menu entries fit in one line */
 @media (max-width: 1380px) { .brand { width: auto; } .brand-text { display: none; } }
+.check-none { color: var(--rejected, #b42318); font-weight: 600; }

@@ -9,6 +9,7 @@
  * @var App\Libraries\MessageReader|null $reader
  * @var string|null $error
  * @var list<array> $tags
+ * @var string|null $listCheck check of the matching allow rule (E-021)
  */
 $statusLabels = [
     'accepted' => lang('Ui.statusAccepted'),
@@ -136,7 +137,8 @@ $html = $reader?->htmlBody();
                     <?php endif ?>
                 <?php endif ?>
                 <?php if ($m['list_match_pattern']): ?>
-                    <?= $row(lang('Ui.listMatch'), $m['list_match_pattern'] . ' (' . ($m['list_match_target'] === 'header' ? lang('Ui.matchHeader') : lang('Ui.matchEnvelope')) . ')') ?>
+                    <?= $row(lang('Ui.listMatch'), $m['list_match_pattern'] . ' (' . ($m['list_match_target'] === 'header' ? lang('Ui.matchHeader') : lang('Ui.matchEnvelope')) . ')'
+                        . (isset($listCheck) ? ' · ' . lang('Senders.check') . ': ' . lang('Senders.check_' . $listCheck) : '')) ?>
                 <?php endif ?>
             </table>
             <?php if ($reasons !== []): ?>

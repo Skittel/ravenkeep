@@ -1,7 +1,7 @@
 <?php
 /**
  * @var array $customer
- * @var list<array> $domains sender domains (E-020)
+ * @var list<array> $domains allow rules whose domain stands for this customer (E-021)
  * @var list<array> $locations
  * @var list<array> $devices
  * @var array<int, list<string>> $tags
@@ -47,27 +47,19 @@ $autoTag = static fn (string $t) => in_array(explode(':', $t, 2)[0], ['kunde', '
     <section class="card">
         <h1><?= lang('Customers.domains') ?></h1>
         <p class="hint"><?= lang('Customers.domainsHint') ?></p>
-        <?= form_open('customers/' . $cid . '/domains', ['class' => 'rule-form']) ?>
-            <label><?= lang('Customers.domain') ?><input type="text" name="domain" required maxlength="253" placeholder="example.com"></label>
-            <label class="check"><input type="checkbox" name="subdomains" value="1"> <?= lang('Customers.subdomains') ?></label>
-            <button type="submit" class="button button-primary"><?= lang('Customers.addDomain') ?></button>
-        <?= form_close() ?>
         <?php if ($domains === []): ?>
             <p class="muted"><?= lang('Customers.noDomains') ?></p>
         <?php else: ?>
             <table class="grid">
-                <thead><tr><th><?= lang('Customers.domain') ?></th><th><?= lang('Customers.subdomains') ?></th><th></th></tr></thead>
+                <thead><tr><th><?= lang('Customers.domain') ?></th><th><?= lang('Senders.check') ?></th></tr></thead>
                 <tbody>
                 <?php foreach ($domains as $d): ?>
-                    <tr>
-                        <td><code><?= esc($d['domain']) ?></code></td>
-                        <td><?= $d['subdomains'] ? '✓' : '' ?></td>
-                        <td class="actions"><?= $post('customers/' . $cid . '/domains/' . $d['id'] . '/delete', lang('Senders.delete'), lang('Customers.confirmDeleteDomain')) ?></td>
-                    </tr>
+                    <tr><td><code><?= esc($d['pattern']) ?></code></td><td><?= lang('Senders.check_' . $d['auth_check']) ?></td></tr>
                 <?php endforeach ?>
                 </tbody>
             </table>
         <?php endif ?>
+        <p><a class="button write-only" href="<?= site_url('senders') ?>"><?= lang('Customers.manageDomains') ?></a></p>
     </section>
 
     <section class="card">

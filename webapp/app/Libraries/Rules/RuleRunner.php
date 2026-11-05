@@ -18,7 +18,7 @@ use Throwable;
  * Automatic tags are set before the rules run, so rules can use them as conditions:
  *   device  – tags of the sending device (SMTP login, or the device named by the address)
  *   address – tags from the recipient address of a domain with parse_address (E-016) and from the
- *             verified sender address of a customer domain (E-020)
+ *             verified sender address of a domain with a tag meaning (E-020, E-021)
  * Fixed rules always win: if a rule sets a tag of a type (e.g. kunde:), automatic tags of that
  * type are dropped.
  */
@@ -212,9 +212,10 @@ class RuleRunner
     }
 
     /**
-     * Header From address of a customer domain (E-020), only for checked (MX) messages and only if SPF
-     * and DKIM pass for a domain of that customer; otherwise the reason is noted in $out.
-     * A single word without mapping (info@, stefan@) is a mailbox, not a device: ignored unless resolved.
+     * Header From address covered by an allow rule with a tag meaning (E-020, E-021), only for checked
+     * (MX) messages and only if the message passes the check of that rule; otherwise noted in $out.
+     * On a customer domain a single word without mapping (info@, stefan@) is a mailbox, not a device:
+     * ignored unless resolved.
      */
     private function senderResult(array $message, array &$out): ?array
     {
@@ -222,19 +223,19 @@ class RuleRunner
         if ($message['mode'] !== 'mx' || ! str_contains($from, '@')) {
             return null;
         }
-        $customer = SenderTags::customerOf(substr((string) strrchr($from, '@'), 1), $this->addressKnown['domains']);
-        if ($customer === null) {
+        $rule = SenderTags::rule($from, $this->addressKnown['senders']);
+        if ($rule === null) {
             return null;
         }
-        $problems = SenderTags::verify(json_decode((string) $message['auth_details'], true) ?: null, $customer, $this->addressKnown['domains']);
-        if ($problems !== []) {
-            $out['sender_unverified'] = implode(' ', $problems);
+        if (! SenderTags::verified($rule, $message)) {
+            $out['sender_unverified'] = $rule['auth_check'];
 
             return null;
         }
         $mapped = $this->addressKnown['map'][$from] ?? null;
-        $result = AddressTags::resolve(SenderTags::schemeAddress($from, $customer), $this->addressKnown, $mapped);
-        if ($result['unknown'] !== [] && $mapped === null && ! str_contains(substr($from, 0, (int) strrpos($from, '@')), '_')) {
+        $result = SenderTags::resolve($from, $rule, $this->addressKnown, $mapped);
+        if ($result['unknown'] !== [] && $mapped === null && $rule['customer'] !== null
+            && ! str_contains(substr($from, 0, (int) strrpos($from, '@')), '_')) {
             return null;
         }
 

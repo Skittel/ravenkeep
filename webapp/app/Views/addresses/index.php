@@ -44,7 +44,7 @@ foreach ($devices as $d) {
                         <td><?php foreach ($u['unknown'] as $p): ?><div><?= esc(lang('Addresses.part_' . $p['part'], [$p['value']])) ?></div><?php endforeach ?></td>
                         <td class="address-actions">
                             <div class="write-only">
-                            <?php foreach ($u['unknown'] as $p): ?>
+                            <?php foreach ($u['customer'] === null ? [] : $u['unknown'] as $p): // without customer only mapping is possible ?>
                                 <?php if ($p['part'] === AddressTags::CUSTOMER): ?>
                                     <?= $create($u, 'customer', $p['value'], 'Addresses.createCustomer') ?>
                                 <?php elseif ($p['part'] === AddressTags::DEVICE): ?>

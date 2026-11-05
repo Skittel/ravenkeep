@@ -10,17 +10,22 @@ use InvalidArgumentException;
  *
  * Classification of a message received without SMTP login:
  *   block rule matches  -> blocked
- *   allow rule matches  -> accepted if the node's sender check passed, otherwise rejected
+ *   allow rule matches  -> accepted if the check of the rule passed (E-021), otherwise rejected
  *   no rule             -> pending
+ *
+ * Checks (auth_check, always aligned with the visible From domain):
+ *   spf_or_dkim (default, E-002) | spf_and_dkim | spf | dkim | none (only if set explicitly)
  */
 class SenderRules
 {
     public const TARGETS = ['envelope', 'header'];
     public const ACTIONS = ['allow', 'block'];
+    public const CHECKS  = ['spf_or_dkim', 'spf_and_dkim', 'spf', 'dkim', 'none'];
+    public const DEFAULT_CHECK = 'spf_or_dkim';
 
     private const DOMAIN_RE = '/^(?=.{4,253}$)(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+(?:[a-z]{2,63}|xn--[a-z0-9-]{1,59})$/';
 
-    /** @param list<array{pattern: string, target: string, action: string}> $rules */
+    /** @param list<array{pattern: string, target: string, action: string, auth_check?: string}> $rules */
     public function __construct(private readonly array $rules)
     {
     }
@@ -64,6 +69,29 @@ class SenderRules
         return false;
     }
 
+    /**
+     * Does a message pass a check? $auth = auth_details (alignment flags from the receive node);
+     * without them only the overall verdict of the node is known (= spf_or_dkim).
+     */
+    public static function passes(string $check, ?array $auth, ?string $verdict = null): bool
+    {
+        if ($check === 'none') {
+            return true;
+        }
+        if (! isset($auth['alignment'])) {
+            return $check === 'spf_or_dkim' && $verdict === 'accepted';
+        }
+        $spf  = ! empty($auth['alignment']['spf_aligned']);
+        $dkim = ! empty($auth['alignment']['dkim_aligned']);
+
+        return match ($check) {
+            'spf_and_dkim' => $spf && $dkim,
+            'spf'          => $spf,
+            'dkim'         => $dkim,
+            default        => $spf || $dkim,
+        };
+    }
+
     /** First rule of the given action that matches the selected sender, or null. */
     public function findMatch(string $action, ?string $envelopeSender, ?string $headerFrom): ?array
     {
@@ -93,7 +121,17 @@ class SenderRules
         if ($match = $this->findMatch('block', $envelope, $header)) {
             $status = 'blocked';
         } elseif ($match = $this->findMatch('allow', $envelope, $header)) {
-            $status = ($message['auth_verdict'] ?? '') === 'accepted' ? 'accepted' : 'rejected';
+            // several allow rules may match (envelope and From): accepted if one of them passes
+            $auth   = $message['auth'] ?? (isset($message['auth_details']) ? json_decode((string) $message['auth_details'], true) : null);
+            $status = 'rejected';
+            foreach ($this->rules as $rule) {
+                $sender = $rule['target'] === 'header' ? $header : $envelope;
+                if ($rule['action'] === 'allow' && self::addressMatches($sender, $rule['pattern'])
+                    && self::passes($rule['auth_check'] ?? self::DEFAULT_CHECK, is_array($auth) ? $auth : null, $message['auth_verdict'] ?? null)) {
+                    [$status, $match] = ['accepted', ['pattern' => $rule['pattern'], 'target' => $rule['target']]];
+                    break;
+                }
+            }
         } else {
             $status = 'pending';
         }

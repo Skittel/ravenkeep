@@ -50,7 +50,7 @@ class Customers extends BaseController
 
         return view('customers/show', [
             'customer'   => $customer,
-            'domains'    => $db->table('customer_domains')->where('customer_id', $id)->orderBy('domain')->get()->getResultArray(),
+            'domains'    => $db->table('sender_rules')->where(['tag_customer_id' => $id, 'action' => 'allow'])->orderBy('pattern')->get()->getResultArray(),
             'locations'  => $db->table('locations')->where('customer_id', $id)->orderBy('name')->get()->getResultArray(),
             'devices'    => $devices,
             'tags'       => $inventory->deviceTagMap(array_map('intval', array_column($devices, 'id'))),
@@ -76,17 +76,6 @@ class Customers extends BaseController
     public function delete(int $id): RedirectResponse
     {
         return $this->change(static fn (Inventory $i) => $i->deleteCustomer($id), static fn () => site_url('customers'), site_url("customers/{$id}"));
-    }
-
-    public function createDomain(int $customerId): RedirectResponse
-    {
-        return $this->change(fn (Inventory $i) => $i->addDomain($customerId, (string) $this->post('domain'), (bool) $this->post('subdomains')),
-            static fn () => site_url("customers/{$customerId}"));
-    }
-
-    public function deleteDomain(int $customerId, int $id): RedirectResponse
-    {
-        return $this->change(static fn (Inventory $i) => $i->deleteDomain($customerId, $id), static fn () => site_url("customers/{$customerId}"));
     }
 
     public function createLocation(int $customerId): RedirectResponse

@@ -41,6 +41,8 @@ final class AddressTags
     public const SCHEME             = 'scheme';
     /** recipient and sender address name a different customer or device (E-020) */
     public const CONFLICT           = 'conflict';
+    /** device code of a sender of a source domain exists at several customers (E-021) */
+    public const AMBIGUOUS          = 'ambiguous';
 
     /**
      * Split an address into customer and groups (levels general -> specific), without any lookup.
