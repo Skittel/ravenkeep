@@ -3,6 +3,7 @@
 use App\Libraries\Mailrunner\MailrunnerClient;
 use App\Libraries\Mailrunner\SmtpCredentials;
 use App\Libraries\Nodes\NodeSettings;
+use App\Libraries\Secrets;
 use CodeIgniter\Test\CIUnitTestCase;
 use CodeIgniter\Test\DatabaseTestTrait;
 
@@ -91,7 +92,7 @@ final class SmtpCredentialsTest extends CIUnitTestCase
         parent::setUp();
         (new NodeSettings($this->db))->addDomain('customer.example.org', null);
         $this->node        = new FakeCredentialNode();
-        $this->credentials = new SmtpCredentials($this->db, $this->node);
+        $this->credentials = new SmtpCredentials($this->db, $this->node, new Secrets(random_bytes(32)));
     }
 
     public function testCreateRotateToggleDelete(): void
@@ -99,6 +100,11 @@ final class SmtpCredentialsTest extends CIUnitTestCase
         [$id, $password, $username] = $this->credentials->create('pm10_ipmi_hq1_acme', 'customer.example.org', 'IPMI', null, false, ['198.51.100.0/24']);
         $this->assertSame(24, strlen($password));
         $this->assertSame($password, $this->node->credentials['mrc_1']['password']); // Ravenkeep's password went to the node
+        // kept encrypted, readable again for a further node
+        $stored = $this->db->table('smtp_identities')->where('id', $id)->get()->getRow()->password_enc;
+        $this->assertStringStartsWith('v1:', $stored);
+        $this->assertStringNotContainsString($password, $stored);
+        $this->assertSame($password, $this->credentials->password($id));
         $this->assertSame('pm10_ipmi_hq1_acme@customer.example.org', $username);
         $this->seeInDatabase('smtp_identities', ['id' => $id, 'credential_id' => 'mrc_1', 'password_hash' => null, 'allowed_networks' => '198.51.100.0/24']);
         $this->assertSame(['198.51.100.0/24'], $this->node->credentials['mrc_1']['allowed_networks']);
@@ -107,6 +113,7 @@ final class SmtpCredentialsTest extends CIUnitTestCase
         $new = $this->credentials->rotate($id, 86400);
         $this->assertNotSame($password, $new);
         $this->assertSame([$new, 86400], [$this->node->credentials['mrc_1']['password'], $this->node->credentials['mrc_1']['grace']]);
+        $this->assertSame($new, $this->credentials->password($id));
 
         $this->credentials->toggle($id);
         $this->assertFalse($this->node->credentials['mrc_1']['enabled']);

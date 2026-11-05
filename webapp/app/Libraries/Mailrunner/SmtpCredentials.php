@@ -3,20 +3,37 @@
 namespace App\Libraries\Mailrunner;
 
 use App\Libraries\Nodes\NodeSettings;
+use App\Libraries\Secrets;
 use App\Libraries\Rules\RuleRunner;
 use CodeIgniter\Database\BaseConnection;
 use InvalidArgumentException;
 
 /**
  * SMTP logins on the MailRunner node (T-21, E-024). Ravenkeep generates the password, hands it to
- * the node (which never returns it) and shows it once; it is not stored. The node reports the login of
+ * the node (which never returns it), shows it once and keeps it encrypted (Secrets), so the same
+ * login can be set up on a further node. The node reports the login of
  * a message as auth.username / credential_id; Ravenkeep keeps credential_id, user name, device and tags. Every change goes to the node first, so the
  * local list never claims a login the node does not have.
  */
 class SmtpCredentials
 {
-    public function __construct(private readonly BaseConnection $db, private readonly MailrunnerClient $client)
+    private readonly Secrets $secrets;
+
+    public function __construct(private readonly BaseConnection $db, private readonly MailrunnerClient $client, ?Secrets $secrets = null)
     {
+        // without a key no login is created: the password could not be read again
+        $this->secrets = $secrets ?? Secrets::fromConfig();
+    }
+
+    /** Password of a login (for setting it up on a further node). */
+    public function password(int $id): string
+    {
+        $row = $this->find($id);
+        if ($row['password_enc'] === null) {
+            throw new InvalidArgumentException('no_password');
+        }
+
+        return $this->secrets->decrypt($row['password_enc']);
     }
 
     /**
@@ -39,6 +56,7 @@ class SmtpCredentials
         $now = gmdate('Y-m-d H:i:s');
         $this->db->table('smtp_identities')->insert([
             'credential_id' => (string) $credential['credential_id'], 'device_id' => $deviceId, 'username' => $username, 'password_hash' => null,
+            'password_enc' => $this->secrets->encrypt($password),
             'note' => $note, 'plaintext_port25' => $plaintextPort25 ? 1 : 0, 'allowed_networks' => $networks === [] ? null : implode(', ', $networks),
             'password_set_at' => $now, 'created_at' => $now, 'updated_at' => $now,
         ]);
@@ -63,7 +81,7 @@ class SmtpCredentials
         }
         $now = gmdate('Y-m-d H:i:s');
         $this->db->table('smtp_identities')->where('id', $id)->update(['credential_id' => (string) $credential['credential_id'], 'password_hash' => null,
-            'password_set_at' => $now, 'updated_at' => $now]);
+            'password_enc' => $this->secrets->encrypt($password), 'password_set_at' => $now, 'updated_at' => $now]);
 
         return $password;
     }
@@ -75,7 +93,7 @@ class SmtpCredentials
         $password = NodeSettings::generatePassword();
         $this->call(fn () => $this->client->rotateCredential($row['credential_id'], $password, $graceSeconds));
         $now      = gmdate('Y-m-d H:i:s');
-        $this->db->table('smtp_identities')->where('id', $id)->update(['password_set_at' => $now, 'updated_at' => $now]);
+        $this->db->table('smtp_identities')->where('id', $id)->update(['password_enc' => $this->secrets->encrypt($password), 'password_set_at' => $now, 'updated_at' => $now]);
 
         return $password;
     }

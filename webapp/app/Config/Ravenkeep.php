@@ -19,6 +19,9 @@ class Ravenkeep extends BaseConfig
     /** Time zone used to display dates in the UI (dates are stored in UTC). */
     public string $displayTimezone = 'Europe/Berlin';
 
+    /** Key for secrets Ravenkeep must read again (Secrets), outside the repository: 32 bytes base64. */
+    public string $secretKeyFile = '/etc/ravenkeep/secret.key';
+
     /** Messages per page in the message list. */
     public int $pageSize = 50;
 
