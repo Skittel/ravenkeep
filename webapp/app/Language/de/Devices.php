@@ -82,4 +82,7 @@ return [
     'invalid_not_registered' => 'Der Zugang ist noch nicht bei Mailrunner angelegt.',
     'invalid_registered' => 'Der Zugang ist schon bei Mailrunner angelegt.',
     'invalid_identity' => 'Unbekannter Zugang.',
+    'showAccess' => 'Zugangsdaten anzeigen',
+    'reveal' => 'Kennwort anzeigen/verbergen',
+    'passwordNotStored' => 'Kennwort nicht gespeichert (Zugang von vor 0.3.23) – bitte auf der Seite Geräte ein neues Kennwort setzen.',
 ];

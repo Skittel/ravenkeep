@@ -119,5 +119,27 @@ final class SmtpLoginTest extends CIUnitTestCase
         $page->assertSee('acme.pm10'); // source:ipmi exists now: the suggestion names the device
         $this->withSession($user)->get('devices')->assertSee('pm10_ipmi_hq1_acme@customer.example.org');
         $this->withSession($user)->post('devices/' . $id, ['tags' => 'source:x'])->assertStatus(403);
+        $this->withSession($user)->post('devices/' . $id . '/show')->assertStatus(403); // read-only users never see a password
+
+        // rw: access data with the stored password, masked, with the eye button
+        $keyFile = tempnam(sys_get_temp_dir(), 'rk');
+        $key     = random_bytes(32);
+        file_put_contents($keyFile, base64_encode($key));
+        putenv('RAVENKEEP_SECRET_KEY_FILE=' . $keyFile);
+        try {
+            $this->db->table('smtp_identities')->where('id', $id)->update(['password_enc' => (new App\Libraries\Secrets($key))->encrypt('Sup3r-Geheim-Kennwort')]);
+            $rw       = ['user' => ['role' => 'rw'] + $user['user']];
+            $form     = $this->withSession($rw)->get('devices/' . $id);
+            $security = config('Security');
+            preg_match('/name="' . $security->tokenName . '" value="([^"]+)"/', $form->getBody(), $m);
+            $page = $this->withSession($rw)->post('devices/' . $id . '/show', [$security->tokenName => $m[1]]);
+            $page->assertOK();
+            $this->assertStringContainsString('type="password" id="access-password" value="Sup3r-Geheim-Kennwort"', $page->getBody());
+            $this->assertStringContainsString('data-reveal="access-password"', $page->getBody());
+            $this->assertStringContainsString('no-store', $page->response()->getHeaderLine('Cache-Control'));
+        } finally {
+            putenv('RAVENKEEP_SECRET_KEY_FILE');
+            unlink($keyFile);
+        }
     }
 }

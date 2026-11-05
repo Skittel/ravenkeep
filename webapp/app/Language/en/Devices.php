@@ -82,4 +82,7 @@ return [
     'invalid_not_registered' => 'The login is not created on MailRunner yet.',
     'invalid_registered' => 'The login already exists on MailRunner.',
     'invalid_identity' => 'Unknown login.',
+    'showAccess' => 'Show access data',
+    'reveal' => 'Show/hide password',
+    'passwordNotStored' => 'Password not stored (login from before 0.3.23) – please set a new password on the Devices page.',
 ];

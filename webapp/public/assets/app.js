@@ -12,6 +12,18 @@
         });
     }
 
+    // Show a password in clear text and hide it again (eye button with data-reveal="<input id>")
+    document.querySelectorAll('button[data-reveal]').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            const field = document.getElementById(btn.dataset.reveal);
+            if (!field) return;
+            const show = field.type === 'password';
+            field.type = show ? 'text' : 'password';
+            btn.classList.toggle('active', show);
+            if (show) field.select();
+        });
+    });
+
     // Confirmation for destructive forms (data-confirm="…")
     document.addEventListener('submit', function (e) {
         const msg = e.target.dataset && e.target.dataset.confirm;

@@ -8,6 +8,7 @@ use App\Libraries\Inventory\LoginTagSuggestion;
 use App\Libraries\Mailrunner\MailrunnerClient;
 use App\Libraries\Mailrunner\SmtpCredentials;
 use App\Libraries\Nodes\NodeSettings;
+use App\Libraries\Secrets;
 use App\Libraries\Rules\RuleRunner;
 use CodeIgniter\Exceptions\PageNotFoundException;
 use CodeIgniter\HTTP\RedirectResponse;
@@ -66,7 +67,25 @@ class Devices extends BaseController
     }
 
     /** Edit a login: device, fixed tags, note – with the suggestion read from its name (E-024). */
-    public function edit(int $id): string
+    /**
+     * Show the access data (server, ports, user name, stored password). POST, so only users with write
+     * access (rw) see the password; the page is not cached.
+     */
+    public function showCredentials(int $id): string
+    {
+        $this->response->setHeader('Cache-Control', 'no-store, max-age=0');
+        try {
+            $row      = db_connect()->table('smtp_identities')->select('password_enc')->where('id', $id)->get()->getRowArray()
+                ?? throw PageNotFoundException::forPageNotFound();
+            $password = $row['password_enc'] === null ? null : Secrets::fromConfig()->decrypt($row['password_enc']);
+        } catch (RuntimeException $e) {
+            $password = null; // login from before 0.3.23 or key missing: a new password has to be set
+        }
+
+        return $this->edit($id, ['password' => $password]);
+    }
+
+    public function edit(int $id, ?array $access = null): string
     {
         $db       = db_connect();
         $identity = $db->table('smtp_identities')->where('id', $id)->get()->getRowArray() ?? throw PageNotFoundException::forPageNotFound();
@@ -85,6 +104,9 @@ class Devices extends BaseController
             'deviceTags' => $identity['device_id'] ? (new Inventory($db, $runner))->deviceTags((int) $identity['device_id']) : [],
             // all tags, including those of customers, locations and devices without any message yet
             'tagNames'   => $this->allTagNames(),
+            'access'     => $access === null ? null : $access + [
+                'host' => (string) parse_url(config('Mailrunner')->url, PHP_URL_HOST), 'username' => $identity['username'],
+            ],
         ]);
     }
 

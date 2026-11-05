@@ -8,6 +8,7 @@
  * @var list<array> $devices
  * @var list<string> $deviceTags tags coming from the linked device
  * @var list<string> $tagNames
+ * @var array{host: string, username: string, password: ?string}|null $access shown after "show access data"
  */
 use App\Libraries\Rules\AddressTags;
 
@@ -42,6 +43,23 @@ $suggestedTags = array_values(array_unique([...$own, ...$suggest['tags']]));
             <button type="submit" class="button button-primary"><?= lang('Rules.save') ?></button>
             <a class="button" href="<?= site_url('devices') ?>"><?= lang('Rules.cancel') ?></a>
         <?= form_close() ?>
+        <?php if ($access === null): ?>
+            <?= form_open('devices/' . $id . '/show', ['class' => 'inline write-only']) ?><button type="submit" class="button"><?= lang('Devices.showAccess') ?></button><?= form_close() ?>
+        <?php else: ?>
+            <table class="kv access">
+                <tr><th><?= lang('Devices.server') ?></th><td><code class="select"><?= esc($access['host']) ?></code></td></tr>
+                <tr><th><?= lang('Devices.port') ?></th><td><code>587</code> (STARTTLS) <?= lang('Devices.or') ?> <code>465</code> (SSL/TLS)<?= lang('Devices.port25') ?></td></tr>
+                <tr><th><?= lang('Devices.username') ?></th><td><code class="select"><?= esc($access['username']) ?></code></td></tr>
+                <tr><th><?= lang('Devices.password') ?></th><td>
+                    <?php if ($access['password'] === null): ?>
+                        <span class="check-none"><?= lang('Devices.passwordNotStored') ?></span>
+                    <?php else: ?>
+                        <span class="secret-field"><input type="password" id="access-password" value="<?= esc($access['password'], 'attr') ?>" readonly autocomplete="off" spellcheck="false">
+                        <button type="button" class="reveal" data-reveal="access-password" title="<?= esc(lang('Devices.reveal'), 'attr') ?>" aria-label="<?= esc(lang('Devices.reveal'), 'attr') ?>">👁</button></span>
+                    <?php endif ?>
+                </td></tr>
+            </table>
+        <?php endif ?>
         <?php if ($deviceTags !== []): ?>
             <p class="hint"><?= lang('Devices.fromDevice') ?> <?php foreach ($deviceTags as $t): ?><span class="<?= rk_tag_class($t) ?>"><?= esc(rk_tag_label($t)) ?></span><?php endforeach ?></p>
         <?php endif ?>
