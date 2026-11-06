@@ -23,7 +23,8 @@ $profileSelect = static function (?int $selected) use ($profiles): string {
 
     return $html . '</select>';
 };
-$autoTag = static fn (string $t) => in_array(explode(':', $t, 2)[0], ['kunde', 'standort', 'geraet'], true);
+// automatic tags of the device itself; further customers ("kunde:" of another customer) are own tags
+$autoTag = static fn (string $t) => in_array(explode(':', $t, 2)[0], ['standort', 'geraet'], true) || $t === 'kunde:' . $customer['code'];
 ?>
 <?= $this->extend('layout') ?>
 <?= $this->section('content') ?>
@@ -111,7 +112,7 @@ $autoTag = static fn (string $t) => in_array(explode(':', $t, 2)[0], ['kunde', '
             <label><?= lang('Customers.code') ?><input type="text" name="code" required maxlength="32" pattern="[a-z0-9][a-z0-9\-]*" placeholder="nas05" class="code-input"></label>
             <label><?= lang('Customers.location') ?><select name="location_id"><option value="">–</option>
                 <?php foreach ($locations as $l): ?><option value="<?= (int) $l['id'] ?>"><?= esc($l['name']) ?></option><?php endforeach ?></select></label>
-            <label><?= lang('Customers.extraTags') ?><input type="text" name="tags" autocomplete="off" placeholder="nas, qnap"<?= rk_tag_picker_attrs('multi', ['kunde', 'standort', 'geraet']) ?>></label>
+            <label><?= lang('Customers.extraTags') ?><input type="text" name="tags" autocomplete="off" placeholder="nas, qnap"<?= rk_tag_picker_attrs('multi', ['standort', 'geraet']) ?>></label>
             <label><?= lang('Customers.profile') ?><?= $profileSelect(null) ?></label>
             <button type="submit" class="button button-primary"><?= lang('Customers.createDevice') ?></button>
         <?= form_close() ?>
@@ -128,7 +129,7 @@ $autoTag = static fn (string $t) => in_array(explode(':', $t, 2)[0], ['kunde', '
                                 <label><?= lang('Customers.name') ?><input type="text" name="name" required maxlength="128" value="<?= esc($d['name'], 'attr') ?>"></label>
                                 <label title="<?= esc(lang('Customers.moveHint'), 'attr') ?>"><?= lang('Customers.location') ?><select name="location_id"><option value="">–</option>
                                     <?php foreach ($locations as $l): ?><option value="<?= (int) $l['id'] ?>" <?= (int) $l['id'] === (int) $d['location_id'] ? 'selected' : '' ?>><?= esc($l['name']) ?></option><?php endforeach ?></select></label>
-                                <label><?= lang('Customers.extraTags') ?><input type="text" name="tags" autocomplete="off" value="<?= esc(implode(', ', $own), 'attr') ?>"<?= rk_tag_picker_attrs('multi', ['kunde', 'standort', 'geraet']) ?>></label>
+                                <label><?= lang('Customers.extraTags') ?><input type="text" name="tags" autocomplete="off" value="<?= esc(implode(', ', $own), 'attr') ?>"<?= rk_tag_picker_attrs('multi', ['standort', 'geraet']) ?>></label>
                                 <label><?= lang('Customers.profile') ?><?= $profileSelect($d['timeout_profile_id'] !== null ? (int) $d['timeout_profile_id'] : null) ?></label>
                                 <label><?= lang('Senders.note') ?><input type="text" name="note" maxlength="255" value="<?= esc($d['note'] ?? '', 'attr') ?>"></label>
                                 <button type="submit" class="button button-primary"><?= lang('Rules.save') ?></button>
@@ -157,5 +158,21 @@ $autoTag = static fn (string $t) => in_array(explode(':', $t, 2)[0], ['kunde', '
             </table>
         <?php endif ?>
     </section>
+
+    <?php if (! empty($shared)): ?>
+    <section class="card">
+        <h1><?= lang('Customers.sharedDevices') ?></h1>
+        <p class="hint"><?= lang('Customers.sharedHint') ?></p>
+        <table>
+            <thead><tr><th><?= lang('Customers.device') ?></th><th><?= lang('Customers.owner') ?></th></tr></thead>
+            <tbody>
+            <?php foreach ($shared as $d): ?>
+                <tr><td><strong><?= esc($d['name']) ?></strong><br><code class="muted"><?= esc($d['path']) ?></code></td>
+                    <td><a href="<?= site_url('customers/' . $d['customer_id'] . '?edit=' . $d['id']) ?>"><?= esc($d['customer_name']) ?></a></td></tr>
+            <?php endforeach ?>
+            </tbody>
+        </table>
+    </section>
+    <?php endif ?>
 </div>
 <?= $this->endSection() ?>

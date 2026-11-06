@@ -70,11 +70,30 @@ class Inventory
     public function deleteCustomer(int $id): void
     {
         if ($this->db->table('locations')->where('customer_id', $id)->countAllResults() > 0
-            || $this->db->table('devices')->where('customer_id', $id)->countAllResults() > 0) {
+            || $this->db->table('devices')->where('customer_id', $id)->countAllResults() > 0
+            || $this->sharedDevices($id) !== []) {
             throw new InvalidArgumentException('not_empty');
         }
         $this->db->table('customers')->where('id', $id)->delete();
         $this->runner->bumpVersion();
+    }
+
+    /**
+     * Devices of other customers that also belong to this customer ("kunde:<code>" device tag).
+     *
+     * @return list<array{id: int, path: string, name: string, customer_id: int, customer_name: string}>
+     */
+    public function sharedDevices(int $customerId): array
+    {
+        $code = $this->db->table('customers')->select('code')->where('id', $customerId)->get()->getRow()->code ?? null;
+        if ($code === null) {
+            return [];
+        }
+
+        return array_map(static fn (array $r): array => ['id' => (int) $r['id'], 'customer_id' => (int) $r['customer_id']] + $r,
+            $this->db->table('device_tags dt')->select('d.id, d.path, d.name, d.customer_id, c.name AS customer_name')
+                ->join('tags t', 't.id = dt.tag_id')->join('devices d', 'd.id = dt.device_id')->join('customers c', 'c.id = d.customer_id')
+                ->where('t.name', 'kunde:' . $code)->orderBy('d.path')->get()->getResultArray());
     }
 
     // ------------------------------------------------------------------ Locations
@@ -125,8 +144,7 @@ class Inventory
         if ($this->db->table('devices')->where('path', $path)->countAllResults() > 0) {
             throw new InvalidArgumentException('code_exists');
         }
-        $tagNames = self::validTags($tags);
-        (new TagTypes($this->db))->assertKnown($tagNames);
+        $tagNames = $this->ownDeviceTags($tags, $customer['code']);
 
         $now = gmdate('Y-m-d H:i:s');
         $this->db->transStart();
@@ -148,13 +166,13 @@ class Inventory
      */
     public function updateDevice(int $id, string $name, ?string $note, array $tags, ?int $timeoutProfileId = null, int|false|null $locationId = false): void
     {
-        $tagNames = self::validTags($tags);
-        (new TagTypes($this->db))->assertKnown($tagNames);
+        $owner    = $this->db->table('devices d')->select('d.customer_id, c.code')->join('customers c', 'c.id = d.customer_id')
+            ->where('d.id', $id)->get()->getRowArray() ?? throw new InvalidArgumentException('device');
+        $tagNames = $this->ownDeviceTags($tags, $owner['code']);
         $data = ['name' => self::validName($name), 'note' => $note, 'timeout_profile_id' => $this->validProfile($timeoutProfileId), 'updated_at' => gmdate('Y-m-d H:i:s')];
         if ($locationId !== false) {
-            $device = $this->db->table('devices')->select('customer_id')->where('id', $id)->get()->getRowArray() ?? throw new InvalidArgumentException('device');
             if ($locationId !== null
-                && $this->db->table('locations')->where(['id' => $locationId, 'customer_id' => $device['customer_id']])->countAllResults() === 0) {
+                && $this->db->table('locations')->where(['id' => $locationId, 'customer_id' => $owner['customer_id']])->countAllResults() === 0) {
                 throw new InvalidArgumentException('location');
             }
             $data['location_id'] = $locationId;
@@ -315,7 +333,7 @@ class Inventory
     }
 
     /** @return list<string> */
-    public static function validTags(array $tags): array
+    public static function validTags(array $tags, bool $allowCustomers = false): array
     {
         $names = [];
         foreach ($tags as $tag) {
@@ -323,7 +341,9 @@ class Inventory
                 continue;
             }
             $name = TagName::normalize((string) $tag);
-            if (in_array(TagName::type($name), self::RESERVED_TAG_TYPES, true)) {
+            $type = TagName::type($name);
+            // a device may belong to further customers: "kunde:" tags (checked against the customers by ownDeviceTags)
+            if (in_array($type, self::RESERVED_TAG_TYPES, true) && ! ($allowCustomers && $type === 'kunde')) {
                 throw new InvalidArgumentException('reserved_tag');
             }
             $names[$name] = true;
@@ -415,6 +435,34 @@ class Inventory
     }
 
     /** @param list<string> $tagNames */
+    /**
+     * Own tags of a device: free tags plus further customers ("kunde:<code>" of existing customers).
+     * The owning customer (path, location, address scheme) stays one; its tag is automatic and left out.
+     *
+     * @return list<string>
+     */
+    private function ownDeviceTags(array $tags, string $ownerCode): array
+    {
+        $names = self::validTags($tags, true);
+        $codes = array_column($this->db->table('customers')->select('code')->get()->getResultArray(), 'code');
+        $out   = [];
+        foreach ($names as $name) {
+            if (TagName::type($name) === 'kunde') {
+                $code = substr($name, 6);
+                if (! in_array($code, $codes, true)) {
+                    throw new InvalidArgumentException('customer_tag');
+                }
+                if ($code === $ownerCode) {
+                    continue;
+                }
+            }
+            $out[] = $name;
+        }
+        (new TagTypes($this->db))->assertKnown($out);
+
+        return $out;
+    }
+
     private function setDeviceTags(int $deviceId, array $tagNames): void
     {
         $this->db->table('device_tags')->where('device_id', $deviceId)->delete();

@@ -56,6 +56,7 @@ class Customers extends BaseController
             'devices'    => $devices,
             'tags'       => $inventory->deviceTagMap(array_map('intval', array_column($devices, 'id'))),
             'monitoring' => array_column($inventory->monitoring($id), null, 'id'),
+            'shared'     => $inventory->sharedDevices($id),
             'profiles'   => $db->table('timeout_profiles')->orderBy('hours')->get()->getResultArray(),
             'tagNames'   => array_column($db->table('tags')->select('name')->orderBy('name')->get()->getResultArray(), 'name'),
             'edit'       => (int) $this->request->getGet('edit'),
