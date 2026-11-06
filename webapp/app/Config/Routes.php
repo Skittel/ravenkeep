@@ -21,6 +21,8 @@ $routes->post('rules/(:num)/delete', 'Rules::delete/$1');
 $routes->post('rules/(:num)/toggle', 'Rules::toggle/$1');
 $routes->post('rules/(:num)/move/(up|down)', 'Rules::move/$1/$2');
 $routes->post('messages/(:num)/tags', 'Messages::addTag/$1');
+$routes->post('messages/(:num)/handling', 'Messages::handling/$1');
+$routes->post('messages/(:num)/notes', 'Messages::addNote/$1');
 $routes->post('messages/(:num)/tags/(:num)/delete', 'Messages::removeTag/$1/$2');
 $routes->get('devices', 'Devices::index');
 $routes->post('devices', 'Devices::create');

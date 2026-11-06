@@ -40,6 +40,10 @@ message that matters, or the one that never arrived, is easily missed.
 - **Actions** – e.g. create or update a ticket in Zammad via API, without
   creating duplicate tickets for recurring errors.
 - **Mail-client style UI** – filter tree, search, message list, reading pane.
+- **Rating, handling and notes** – every message has a rating (info, ok,
+  warning, error; not rated until content evaluation exists) and a handling
+  status (new, open, done, waiting until a date), plus append-only notes with
+  author and time.
 
 ## Architecture
 

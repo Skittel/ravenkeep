@@ -11,6 +11,8 @@
  * @var list<array> $tags
  * @var list<string> $tagTypes tag types for manual tags (E-023)
  * @var string|null $listCheck check of the matching allow rule (E-021)
+ * @var list<array> $notes notes, oldest first
+ * @var string|null $tab tab to open ("notes" after saving a note)
  */
 $statusLabels = [
     'accepted' => lang('Ui.statusAccepted'),
@@ -46,7 +48,10 @@ $html = $reader?->htmlBody();
 <article class="message" data-id="<?= $m['id'] ?>">
     <header class="message-head">
         <h1><?= esc($m['subject'] ?? '') ?: '<em>' . lang('Ui.noSubject') . '</em>' ?></h1>
-        <span class="badge badge-<?= esc($m['status'], 'attr') ?>"><?= esc($statusLabels[$m['status']] ?? $m['status']) ?></span>
+        <?php if ($m['status'] !== 'accepted'): // "accepted" is the normal case, shown only when different ?>
+            <span class="badge badge-<?= esc($m['status'], 'attr') ?>"><?= esc($statusLabels[$m['status']] ?? $m['status']) ?></span>
+        <?php endif ?>
+        <span class="work-badges"><?= view('messages/_work', ['m' => $m]) ?></span>
         <a class="button" href="<?= site_url('messages/' . $m['id'] . '/eml') ?>"><?= lang('Ui.downloadEml') ?></a>
     </header>
 
@@ -54,6 +59,20 @@ $html = $reader?->htmlBody();
         <?= $row(lang('Ui.from'), $m['header_from'] ?: $m['envelope_sender']) ?>
         <?= $row(lang('Ui.to'), $m['header_to'] ?: $m['envelope_recipient']) ?>
         <?= $row(lang('Ui.dateReceived'), rk_time($m['received_at'])) ?>
+        <tr><th><?= lang('Ui.rating') ?></th><td><?= lang('Ui.rating_' . ($m['rating'] ?? 'none')) ?></td></tr>
+        <tr><th><?= lang('Ui.handling') ?></th><td>
+            <?= form_open('messages/' . $m['id'] . '/handling', ['class' => 'inline handling-form']) ?>
+                <select name="handling" data-handling>
+                    <?php foreach (App\Libraries\Messages\MessageWork::HANDLING as $h): ?>
+                        <option value="<?= $h ?>"<?= ($m['handling'] ?? 'new') === $h ? ' selected' : '' ?>><?= lang('Ui.handling_' . $h) ?></option>
+                    <?php endforeach ?>
+                </select>
+                <input type="date" name="handling_until" value="<?= esc((string) ($m['handling_until'] ?? ''), 'attr') ?>" min="<?= esc((new DateTimeImmutable('tomorrow', new DateTimeZone(config('Ravenkeep')->displayTimezone)))->format('Y-m-d'), 'attr') ?>" data-handling-until<?= ($m['handling'] ?? 'new') === 'waiting' ? '' : ' hidden' ?>>
+                <button type="submit" class="button"><?= lang('Ui.save') ?></button>
+            <?= form_close() ?>
+            <span class="read-only-value"><?= ($m['handling'] ?? 'new') === 'waiting' && ! empty($m['handling_until']) ? esc(lang('Ui.handlingUntil', [rk_time($m['handling_until'] . ' 12:00:00', 'd.m.Y')])) : lang('Ui.handling_' . ($m['handling'] ?? 'new')) ?></span>
+            <?php if (! empty($m['handling_by'])): ?><span class="hint"><?= esc(lang('Ui.handlingBy', [$m['handling_by'], rk_relative_time($m['handling_at'])])) ?></span><?php endif ?>
+        </td></tr>
         <tr><th><?= lang('Rules.tags') ?></th><td>
             <div class="message-tags">
                 <?php foreach ($tags as $tg): ?>
@@ -72,23 +91,26 @@ $html = $reader?->htmlBody();
     </table>
 
     <section class="body">
+        <?php $active = ($tab ?? null) === 'notes' ? 'notes' : ($text !== null || $html === null ? 'text' : 'html'); ?>
         <?php if ($error !== null): ?>
             <p class="error"><?= esc($error) ?></p>
+            <?= view('messages/_notes', ['m' => $m, 'notes' => $notes ?? [], 'hidden' => false]) ?>
         <?php else: ?>
             <div class="tabs" role="tablist">
-                <button type="button" data-tab="text" class="<?= $text !== null || $html === null ? 'active' : '' ?>"><?= lang('Ui.viewText') ?></button>
+                <button type="button" data-tab="text" class="<?= $active === 'text' ? 'active' : '' ?>"><?= lang('Ui.viewText') ?></button>
                 <?php if ($html !== null): ?>
-                    <button type="button" data-tab="html" class="<?= $text === null ? 'active' : '' ?>"><?= lang('Ui.viewHtml') ?></button>
+                    <button type="button" data-tab="html" class="<?= $active === 'html' ? 'active' : '' ?>"><?= lang('Ui.viewHtml') ?></button>
                 <?php endif ?>
                 <button type="button" data-tab="headers"><?= lang('Ui.viewHeaders') ?></button>
                 <button type="button" data-tab="details"><?= lang('Ui.viewDetails') ?></button>
                 <button type="button" data-tab="rules"><?= lang('Ui.viewRules') ?></button>
+                <button type="button" data-tab="notes" class="<?= $active === 'notes' ? 'active' : '' ?>"><?= lang('Ui.viewNotes') ?><?php if (($notes ?? []) !== []): ?> <span class="count"><?= count($notes) ?></span><?php endif ?></button>
             </div>
-            <div class="tab" data-tab="text" <?= $text !== null || $html === null ? '' : 'hidden' ?>>
+            <div class="tab" data-tab="text" <?= $active === 'text' ? '' : 'hidden' ?>>
                 <pre class="text"><?= esc($text ?? lang('Ui.noBody')) ?></pre>
             </div>
             <?php if ($html !== null): ?>
-                <div class="tab" data-tab="html" <?= $text === null ? '' : 'hidden' ?>>
+                <div class="tab" data-tab="html" <?= $active === 'html' ? '' : 'hidden' ?>>
                     <p class="hint"><?= lang('Ui.htmlHint') ?></p>
                     <iframe sandbox="" referrerpolicy="no-referrer" data-src="<?= site_url('messages/' . $m['id'] . '/html') ?>" title="HTML"></iframe>
                 </div>
@@ -174,6 +196,7 @@ $html = $reader?->htmlBody();
             </table>
                 <?php endif ?>
             </div>
+            <?= view('messages/_notes', ['m' => $m, 'notes' => $notes ?? [], 'hidden' => $active !== 'notes']) ?>
             <?php $attachments = $reader->attachments(); ?>
             <?php if ($attachments !== []): ?>
                 <h2><?= lang('Ui.attachments') ?></h2>

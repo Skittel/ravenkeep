@@ -125,3 +125,44 @@ if (! function_exists('rk_sender_reason')) {
         return lang('Senders.checkFailed', [lang($key) !== $key ? lang($key) : $check]);
     }
 }
+
+if (! function_exists('rk_relative_time')) {
+    /** Relative time of a UTC timestamp: "gerade eben", "vor 5 Minuten", "vor 2 Tagen" … */
+    function rk_relative_time(?string $utc, ?int $now = null): string
+    {
+        if ($utc === null || $utc === '') {
+            return '';
+        }
+        $seconds = max(0, ($now ?? time()) - (new DateTimeImmutable($utc, new DateTimeZone('UTC')))->getTimestamp());
+        foreach ([['years', 31536000], ['months', 2592000], ['days', 86400], ['hours', 3600], ['minutes', 60]] as [$unit, $size]) {
+            if ($seconds >= $size) {
+                return lang('Ui.ago_' . $unit, [intdiv($seconds, $size)]);
+            }
+        }
+
+        return lang('Ui.ago_now');
+    }
+}
+
+if (! function_exists('rk_specific_tags')) {
+    /**
+     * Leave out tags that are only a level above another tag of the list
+     * ("source:proxmox" next to "source:proxmox.ve"; "standort:acme.hq1" next to "standort:acme.hq1.2og").
+     *
+     * @param list<string> $names
+     *
+     * @return list<string>
+     */
+    function rk_specific_tags(array $names): array
+    {
+        return array_values(array_filter($names, static function (string $name) use ($names): bool {
+            foreach ($names as $other) {
+                if (str_starts_with($other, $name . '.')) {
+                    return false;
+                }
+            }
+
+            return true;
+        }));
+    }
+}

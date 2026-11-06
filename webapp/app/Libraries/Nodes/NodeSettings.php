@@ -70,7 +70,7 @@ class NodeSettings
     /**
      * Device and fixed tags of a login (E-024). The device supplies customer, location and device
      * tags; the login adds its own (e.g. source:ipmi). All tag types are allowed, also kunde/standort/
-     * geraet, so a login can be defined without a device (Stefan, 05.11.2026); unknown types are refused.
+     * geraet, so a login can be defined without a device (product owner, 05.11.2026); unknown types are refused.
      *
      * @param list<string> $tags
      */

@@ -7,7 +7,7 @@ use CodeIgniter\Database\Migration;
 /**
  * The password of a MailRunner SMTP login is kept encrypted (libsodium secretbox, key in
  * /etc/ravenkeep/secret.key outside the repository and database), so the same login can be set up
- * on a further node later (Stefan, 05.11.2026).
+ * on a further node later (product owner, 05.11.2026).
  */
 class SmtpPasswordEncrypted extends Migration
 {

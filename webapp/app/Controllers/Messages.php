@@ -3,6 +3,7 @@
 namespace App\Controllers;
 
 use App\Libraries\MessageReader;
+use App\Libraries\Messages\MessageWork;
 use App\Libraries\Rules\RuleRunner;
 use App\Libraries\Rules\TagName;
 use App\Libraries\Rules\TagTypes;
@@ -36,7 +37,7 @@ class Messages extends BaseController
         $pages    = max(1, (int) ceil($total / $config->pageSize));
         $page     = min($page, $pages);
         $messages = $model->filtered($filter)
-            ->select('id, received_at, status, mode, envelope_sender, envelope_recipient, header_from, sasl_username, subject')
+            ->select('id, received_at, status, mode, subject, rating, handling, handling_until')
             ->orderBy('received_at', 'DESC')->orderBy('id', 'DESC')
             ->findAll($config->pageSize, ($page - 1) * $config->pageSize);
 
@@ -51,7 +52,7 @@ class Messages extends BaseController
             'total'    => $total,
             'page'     => $page,
             'pages'    => $pages,
-            'pane'     => $selectedId > 0 ? $this->paneOrNull($selectedId) : null,
+            'pane'     => $selectedId > 0 ? $this->paneOrNull($selectedId, (string) $this->request->getGet('tab')) : null,
             'selected' => $selectedId,
         ]);
     }
@@ -95,16 +96,16 @@ class Messages extends BaseController
     }
 
     /** Reading pane for a preselected message; an unknown id just shows the list. */
-    private function paneOrNull(int $id): ?string
+    private function paneOrNull(int $id, string $tab = ''): ?string
     {
         try {
-            return $this->pane($id);
+            return $this->pane($id, $tab);
         } catch (PageNotFoundException) {
             return null;
         }
     }
 
-    private function pane(int $id): string
+    private function pane(int $id, string $tab = ''): string
     {
         $message = $this->find($id);
         $reader  = null;
@@ -135,7 +136,39 @@ class Messages extends BaseController
             'reader'  => $reader,
             'error'   => $error,
             'tags'    => (new MessageModel())->tagsFor([$id])[$id] ?? [],
+            'notes'   => (new MessageWork(db_connect()))->notes($id),
+            'tab'     => $tab === 'notes' ? 'notes' : null,
         ]);
+    }
+
+    /** Set the handling status ("Status 2": new, open, done, waiting until a date). */
+    public function handling(int $id): RedirectResponse
+    {
+        $this->find($id);
+
+        try {
+            $today = (new \DateTimeImmutable('now', new \DateTimeZone(config('Ravenkeep')->displayTimezone)))->format('Y-m-d');
+            (new MessageWork(db_connect()))->setHandling($id, (string) $this->request->getPost('handling'),
+                $this->request->getPost('handling_until'), (array) session('user'), $today);
+        } catch (InvalidArgumentException $e) {
+            session()->setFlashdata('error', lang('Ui.invalid_' . $e->getMessage()));
+        }
+
+        return redirect()->to(site_url('/') . '?id=' . $id);
+    }
+
+    /** Add a note; notes are never changed or deleted. */
+    public function addNote(int $id): RedirectResponse
+    {
+        $this->find($id);
+
+        try {
+            (new MessageWork(db_connect()))->addNote($id, (string) $this->request->getPost('body'), (array) session('user'));
+        } catch (InvalidArgumentException) {
+            session()->setFlashdata('error', lang('Ui.invalid_note'));
+        }
+
+        return redirect()->to(site_url('/') . '?id=' . $id . '&tab=notes');
     }
 
     /** Add a manual tag; the rules are re-applied right away (rules may depend on it). */

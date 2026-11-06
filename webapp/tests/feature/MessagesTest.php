@@ -61,12 +61,12 @@ final class MessagesTest extends CIUnitTestCase
     public function testStatusFilterAndSearch(): void
     {
         $pending = $this->get('/?status=pending');
-        $pending->assertSee('spam@unknown.example');
+        $pending->assertSee('Unknown &lt;b&gt;sender&lt;/b&gt;');
         $pending->assertDontSee('Backup OK');
 
         $search = $this->get('/?q=monitor');
         $search->assertSee('Backup OK');
-        $search->assertDontSee('spam@unknown.example');
+        $search->assertDontSee('Unknown &lt;b&gt;sender&lt;/b&gt;');
     }
 
     public function testTimeRangeDefaultsTo48Hours(): void
@@ -110,6 +110,97 @@ final class MessagesTest extends CIUnitTestCase
             file_put_contents(getenv('RK_DUMP_PAGES') . '/dashboard.html', $this->get('dashboard')->getBody());
             file_put_contents(getenv('RK_DUMP_PAGES') . '/list.html', $this->get('/')->getBody());
         }
+    }
+
+    public function testListShowsCustomerSourceTagsAndStatusInsteadOfAddresses(): void
+    {
+        $runner = new App\Libraries\Rules\RuleRunner($this->db, config('Ravenkeep')->archivePath);
+        foreach (['kunde:acme', 'source:proxmox', 'source:proxmox.ve', 'geraet:acme.pm10', 'meldung:gc'] as $tag) {
+            $this->db->table('message_tags')->insert(['message_id' => $this->acceptedId, 'tag_id' => $runner->tagId($tag), 'source' => 'address']);
+        }
+        $body = $this->get('/')->getBody();
+
+        $this->assertStringContainsString('<td class="col-customer" title="acme">acme</td>', $body);
+        // only the most specific level of a source
+        $this->assertStringContainsString('<td class="col-source" title="proxmox.ve">proxmox.ve</td>', $body);
+        $this->assertStringContainsString('title="geraet - acme.pm10">acme.pm10</span>', $body);
+        $this->assertStringNotContainsString('bounce@monitor.example', $body);
+        $this->assertStringNotContainsString('x@customer.ravenkeep.cloud', $body);
+        $this->assertStringContainsString('work-rating rating-none">unbewertet', $body);
+        $this->assertStringContainsString('handling-new">neu', $body);
+    }
+
+    public function testPaneHidesAcceptedBadgeButShowsDifferentStatus(): void
+    {
+        $accepted = $this->get('/?id=' . $this->acceptedId)->getBody();
+        $this->assertStringNotContainsString('badge badge-accepted', $accepted);
+        $this->assertStringContainsString('data-tab="notes"', $accepted);
+        $this->assertStringContainsString('unbewertet', $accepted);
+
+        $this->assertStringContainsString('badge badge-pending', $this->get('/?id=' . $this->pendingId)->getBody());
+    }
+
+    public function testHandlingStatus(): void
+    {
+        config('Filters')->globals['before'] = ['rklogin' => ['except' => ['auth/*']]]; // CSRF is covered by AuthTest / the running app
+        $this->withSession(['user' => ['oid' => 'o1', 'name' => 'Erika Muster', 'username' => 'e@example.org', 'role' => 'rw', 'login_at' => time()]]);
+
+        $this->post("messages/{$this->acceptedId}/handling", ['handling' => 'done'])->assertRedirect();
+        $row = $this->db->table('messages')->where('id', $this->acceptedId)->get()->getRowArray();
+        $this->assertSame(['done', null, 'Erika Muster'], [$row['handling'], $row['handling_until'], $row['handling_by']]);
+
+        // waiting needs a date in the future
+        $this->post("messages/{$this->acceptedId}/handling", ['handling' => 'waiting', 'handling_until' => '2020-01-01']);
+        $this->assertSame('done', $this->db->table('messages')->where('id', $this->acceptedId)->get()->getRow()->handling);
+        $this->post("messages/{$this->acceptedId}/handling", ['handling' => 'bogus']);
+        $this->assertSame('done', $this->db->table('messages')->where('id', $this->acceptedId)->get()->getRow()->handling);
+
+        $until = gmdate('Y-m-d', time() + 5 * 86400);
+        $this->post("messages/{$this->acceptedId}/handling", ['handling' => 'waiting', 'handling_until' => $until]);
+        $row = $this->db->table('messages')->where('id', $this->acceptedId)->get()->getRowArray();
+        $this->assertSame(['waiting', $until], [$row['handling'], $row['handling_until']]);
+        $this->assertStringContainsString('warten bis ' . date('d.m.', strtotime($until)), $this->get('/')->getBody());
+    }
+
+    public function testNotesAreAppendedWithAuthorAndNeverChanged(): void
+    {
+        config('Filters')->globals['before'] = ['rklogin' => ['except' => ['auth/*']]]; // CSRF is covered by AuthTest / the running app
+        $this->withSession(['user' => ['oid' => 'o1', 'name' => 'Erika Muster', 'username' => 'e@example.org', 'role' => 'rw', 'login_at' => time()]]);
+
+        $this->post("messages/{$this->acceptedId}/notes", ['body' => 'first <b>note</b>'])->assertRedirectTo(site_url('/') . '?id=' . $this->acceptedId . '&tab=notes');
+        $this->post("messages/{$this->acceptedId}/notes", ['body' => "second\nline"]);
+        $this->post("messages/{$this->acceptedId}/notes", ['body' => '   ']); // empty: ignored
+        $this->db->table('message_notes')->where('body', 'first <b>note</b>')->update(['created_at' => gmdate('Y-m-d H:i:s', time() - 2 * 86400)]);
+
+        $notes = $this->db->table('message_notes')->where('message_id', $this->acceptedId)->orderBy('id')->get()->getResultArray();
+        $this->assertCount(2, $notes);
+        $this->assertSame(['Erika Muster', 'e@example.org'], [$notes[0]['author_name'], $notes[0]['author_username']]);
+
+        $body = $this->get('/?id=' . $this->acceptedId . '&tab=notes')->getBody();
+        $first  = strpos($body, 'first &lt;b&gt;note&lt;/b&gt;');
+        $second = strpos($body, 'second');
+        $this->assertNotFalse($first);
+        $this->assertGreaterThan($first, $second); // newest at the bottom
+        $this->assertStringContainsString('vor 2 Tagen', $body);
+        $this->assertStringContainsString('gerade eben', $body);
+        $this->assertStringContainsString('<button type="button" data-tab="notes" class="active">', $body);
+
+        // read-only users cannot write notes
+        $this->withSession(['user' => ['oid' => 'o', 'name' => 'Test', 'username' => 't@example.org', 'role' => 'ro', 'login_at' => time()]]);
+        $this->post("messages/{$this->acceptedId}/notes", ['body' => 'ro']);
+        $this->assertSame(2, $this->db->table('message_notes')->where('message_id', $this->acceptedId)->countAllResults());
+    }
+
+    public function testRelativeTime(): void
+    {
+        helper('ravenkeep');
+        $now = strtotime('2026-11-06 12:00:00 UTC');
+        $this->assertSame('gerade eben', rk_relative_time('2026-11-06 11:59:30', $now));
+        $this->assertSame('vor 1 Minute', rk_relative_time('2026-11-06 11:59:00', $now));
+        $this->assertSame('vor 5 Minuten', rk_relative_time('2026-11-06 11:55:00', $now));
+        $this->assertSame('vor 3 Stunden', rk_relative_time('2026-11-06 09:00:00', $now));
+        $this->assertSame('vor 2 Tagen', rk_relative_time('2026-11-04 12:00:00', $now));
+        $this->assertSame('vor 1 Jahr', rk_relative_time('2025-11-01 12:00:00', $now));
     }
 
     public function testHtmlViewIsSandboxed(): void

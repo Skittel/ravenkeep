@@ -262,7 +262,7 @@ class RuleRunner
     /**
      * Header From address covered by an allow rule with a tag meaning (E-020, E-021), only for checked
      * (MX) messages and only if the message passes the check of that rule; otherwise noted in $out.
-     * On a customer domain a single word without mapping (info@, stefan@) is a mailbox, not a device:
+     * On a customer domain a single word without mapping (info@, office@) is a mailbox, not a device:
      * ignored unless resolved.
      */
     private function senderResult(array $message, array &$out): ?array

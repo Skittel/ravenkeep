@@ -346,3 +346,12 @@
 
     initPane();
 })();
+
+// Handling "waiting until": show the date field only for that status (0.3.30)
+document.addEventListener('change', function (e) {
+    if (!e.target.matches || !e.target.matches('select[data-handling]')) return;
+    const date = e.target.form.querySelector('[data-handling-until]');
+    if (!date) return;
+    date.hidden = e.target.value !== 'waiting';
+    date.required = e.target.value === 'waiting';
+});

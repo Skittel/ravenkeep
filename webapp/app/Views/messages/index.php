@@ -78,8 +78,10 @@ $statusLabels = [
                 <tr>
                     <th class="col-time"><?= lang('Ui.received') ?></th>
                     <th class="col-status"></th>
-                    <th class="col-from"><?= lang('Ui.from') ?></th>
-                    <th class="col-to"><?= lang('Ui.to') ?></th>
+                    <th class="col-customer"><?= lang('Ui.colCustomer') ?></th>
+                    <th class="col-source"><?= lang('Ui.colSource') ?></th>
+                    <th class="col-tags"><?= lang('Ui.colTags') ?></th>
+                    <th class="col-work"><?= lang('Ui.colWork') ?></th>
                     <th><?= lang('Ui.subject') ?></th>
                 </tr>
                 </thead>
@@ -88,13 +90,18 @@ $statusLabels = [
                     <tr data-id="<?= $m['id'] ?>" class="<?= (int) $m['id'] === $selected ? 'selected' : '' ?> status-<?= esc($m['status'], 'attr') ?>" tabindex="0">
                         <td class="col-time" title="<?= esc(rk_time($m['received_at']), 'attr') ?>"><?= esc(rk_list_time($m['received_at'])) ?></td>
                         <td class="col-status"><span class="dot dot-<?= esc($m['status'], 'attr') ?>" title="<?= esc($statusLabels[$m['status']] ?? $m['status'], 'attr') ?>"></span></td>
-                        <td class="col-from"><?= esc($m['mode'] === 'auth' ? $m['sasl_username'] : ($m['header_from'] ?: $m['envelope_sender'])) ?></td>
-                        <td class="col-to"><?= esc($m['envelope_recipient']) ?></td>
-                        <td class="col-subject"><?php foreach ($tags[(int) $m['id']] ?? [] as $tg): ?><span class="<?= rk_tag_class($tg['name']) ?>"><?= esc(rk_tag_label($tg['name'])) ?></span><?php endforeach ?><a href="<?= rk_query($filter, ['id' => $m['id']]) ?>"><?= esc($m['subject'] ?? '') ?: '<em>' . lang('Ui.noSubject') . '</em>' ?></a></td>
+                        <?php $names = rk_specific_tags(array_column($tags[(int) $m['id']] ?? [], 'name')); ?>
+                        <?php $byType = static fn (string $type): array => array_map(static fn ($n) => substr($n, strlen($type) + 1), array_values(array_filter($names, static fn ($n) => str_starts_with($n, $type . ':')))); ?>
+                        <?php $customers = $byType('kunde'); $sources = $byType('source'); ?>
+                        <td class="col-customer" title="<?= esc(implode(', ', $customers), 'attr') ?>"><?= esc(implode(', ', $customers)) ?></td>
+                        <td class="col-source" title="<?= esc(implode(', ', $sources), 'attr') ?>"><?= esc(implode(', ', $sources)) ?></td>
+                        <td class="col-tags"><?php foreach ($names as $name): ?><?php if (! str_starts_with($name, 'kunde:') && ! str_starts_with($name, 'source:')): ?><span class="<?= rk_tag_class($name) ?>" title="<?= esc(rk_tag_label($name), 'attr') ?>"><?= esc(str_contains($name, ':') ? explode(':', $name, 2)[1] : $name) ?></span><?php endif ?><?php endforeach ?></td>
+                        <td class="col-work"><?= view('messages/_work', ['m' => $m]) ?></td>
+                        <td class="col-subject"><a href="<?= rk_query($filter, ['id' => $m['id']]) ?>"><?= esc($m['subject'] ?? '') ?: '<em>' . lang('Ui.noSubject') . '</em>' ?></a></td>
                     </tr>
                 <?php endforeach ?>
                 <?php if ($messages === []): ?>
-                    <tr><td colspan="5" class="empty"><?= lang('Ui.noMessages') ?></td></tr>
+                    <tr><td colspan="7" class="empty"><?= lang('Ui.noMessages') ?></td></tr>
                 <?php endif ?>
                 </tbody>
             </table>
