@@ -40,8 +40,8 @@ message that matters, or the one that never arrived, is easily missed.
 - **Actions** – e.g. create or update a ticket in Zammad via API, without
   creating duplicate tickets for recurring errors.
 - **Mail-client style UI** – filter tree, search, message list, reading pane.
-- **Shared devices** – a device has one owning customer (path, location,
-  address scheme) and may belong to further customers via `kunde:` tags.
+- **Shared devices** – a device has one owning customer (1:1: path, location,
+  address scheme) and may be used by further customers (1:n).
 - **Rating, handling and notes** – every message has a rating (info, ok,
   warning, error; not rated until content evaluation exists) and a handling
   status (new, open, done, waiting until a date), plus append-only notes with

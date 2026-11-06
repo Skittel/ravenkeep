@@ -53,6 +53,27 @@ final class InventoryPagesTest extends CIUnitTestCase
         }
     }
 
+    public function testDeviceCanBeUsedByFurtherCustomers(): void
+    {
+        $inventory = new Inventory($this->db, new RuleRunner($this->db));
+        $globex    = $inventory->createCustomer('globex', 'Globex Corp', null);
+        $device    = (int) $this->db->table('devices')->where('path', 'acme.nas05')->get()->getRow()->id;
+
+        $form = $this->as('rw')->get("customers/{$this->customer}?edit={$device}")->getBody();
+        $this->assertStringContainsString('name="users[]" value="' . $globex . '"', $form);
+        $this->assertStringNotContainsString('name="users[]" value="' . $this->customer . '"', $form); // not the owner
+
+        config('Filters')->globals['before'] = ['rklogin' => ['except' => ['auth/*']]]; // CSRF: see AuthTest
+        $this->as('rw')->post("customers/{$this->customer}/devices/{$device}", ['name' => 'NAS05', 'tags' => 'typ:nas', 'users_sent' => '1', 'users' => [$globex]])->assertRedirect();
+        $this->seeInDatabase('device_customers', ['device_id' => $device, 'customer_id' => $globex]);
+
+        $owner = $this->as('ro')->get("customers/{$this->customer}")->getBody();
+        $this->assertStringContainsString('Genutzt von: <a href="' . site_url('customers/' . $globex) . '">Globex Corp</a>', $owner);
+        $user = $this->as('ro')->get("customers/{$globex}")->getBody();
+        $this->assertStringContainsString('Genutzte Geräte anderer Kunden', $user);
+        $this->assertStringContainsString('acme.nas05', $user);
+    }
+
     public function testDashboardShowsOverdueDevice(): void
     {
         $result = $this->as('ro')->get('dashboard');

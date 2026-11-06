@@ -72,8 +72,8 @@ final class InventoryTest extends CIUnitTestCase
         $cases = [
             'code'         => fn () => $this->inventory->createCustomer('Bad Code', 'x', null),
             'code_exists'  => fn () => $this->inventory->createCustomer('acme', 'x', null),
-            'reserved_tag' => fn () => $this->inventory->createDevice($this->customer, null, 'd1', 'D1', null, ['standort:acme.x']),
-            'customer_tag' => fn () => $this->inventory->createDevice($this->customer, null, 'd1', 'D1', null, ['kunde:other']),
+            'reserved_tag' => fn () => $this->inventory->createDevice($this->customer, null, 'd1', 'D1', null, ['kunde:other']),
+            'customer'     => fn () => $this->inventory->createDevice($this->customer, null, 'd1', 'D1', null, [], null, [999]),
             'location'     => fn () => $this->inventory->createDevice($this->customer, 999, 'd2', 'D2', null, []),
             'not_empty'    => fn () => $this->inventory->deleteCustomer($this->customer),
         ];
@@ -194,13 +194,17 @@ final class InventoryTest extends CIUnitTestCase
     public function testDeviceCanBelongToFurtherCustomers(): void
     {
         $globex = $this->inventory->createCustomer('globex', 'Globex', null);
-        $id     = $this->inventory->createDevice($this->customer, $this->location, 'srv01', 'SRV01', null, ['kunde:acme', 'kunde:globex', 'typ:server']);
+        // owner 1:1 (path, location), further customers using the device 1:n; the owner in the list is ignored
+        $id     = $this->inventory->createDevice($this->customer, $this->location, 'srv01', 'SRV01', null, ['typ:server'], null, [$globex, $this->customer]);
 
-        // the owning customer stays one (path, location); its tag is automatic, the further customer is an own tag
         $this->seeInDatabase('devices', ['id' => $id, 'path' => 'acme.srv01', 'customer_id' => $this->customer]);
         $this->assertSame(['kunde:acme', 'standort:acme.branch2', 'geraet:acme.srv01', 'kunde:globex', 'typ:server'], $this->inventory->deviceTags($id));
         $this->assertSame(['acme.srv01'], array_column($this->inventory->sharedDevices($globex), 'path'));
         $this->assertSame([], $this->inventory->sharedDevices($this->customer));
+        $this->assertSame(['globex'], array_column($this->inventory->deviceUsers([$id])[$id], 'code'));
+        // null = unchanged
+        $this->inventory->updateDevice($id, 'SRV01', null, ['typ:server']);
+        $this->assertSame(['acme.srv01'], array_column($this->inventory->sharedDevices($globex), 'path'));
 
         // messages of the device carry both customers
         $this->db->table('smtp_identities')->insert(['device_id' => $id, 'username' => 'acme.srv01.x@customer.example.org', 'created_at' => gmdate('Y-m-d H:i:s')]);
@@ -217,7 +221,7 @@ final class InventoryTest extends CIUnitTestCase
         } catch (InvalidArgumentException $e) {
             $this->assertSame('not_empty', $e->getMessage());
         }
-        $this->inventory->updateDevice($id, 'SRV01', null, ['typ:server']);
+        $this->inventory->updateDevice($id, 'SRV01', null, ['typ:server'], null, false, []);
         $this->inventory->deleteCustomer($globex);
         $this->dontSeeInDatabase('customers', ['id' => $globex]);
     }

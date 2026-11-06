@@ -340,3 +340,6 @@ table.devices code { font-size: 11px; }
     .list td.col-tags { display: block; grid-column: 2 / -1; grid-row: 3; width: auto; white-space: normal; }
     .list td.col-work { grid-column: 2 / -1; grid-row: 4; width: auto; }
 }
+.device-users { border: 1px solid var(--border); border-radius: 6px; padding: 4px 10px; display: flex; flex-wrap: wrap; gap: 0 14px; }
+.device-users legend { font-size: 12px; color: var(--muted); padding: 0 4px; }
+.device-users .check { margin: 4px 0; }

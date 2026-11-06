@@ -57,6 +57,8 @@ class Customers extends BaseController
             'tags'       => $inventory->deviceTagMap(array_map('intval', array_column($devices, 'id'))),
             'monitoring' => array_column($inventory->monitoring($id), null, 'id'),
             'shared'     => $inventory->sharedDevices($id),
+            'users'      => $inventory->deviceUsers(array_map('intval', array_column($devices, 'id'))),
+            'customers'  => $db->table('customers')->select('id, code, name')->where('id !=', $id)->orderBy('name')->get()->getResultArray(),
             'profiles'   => $db->table('timeout_profiles')->orderBy('hours')->get()->getResultArray(),
             'tagNames'   => array_column($db->table('tags')->select('name')->orderBy('name')->get()->getResultArray(), 'name'),
             'edit'       => (int) $this->request->getGet('edit'),
@@ -99,14 +101,24 @@ class Customers extends BaseController
     public function createDevice(int $customerId): RedirectResponse
     {
         return $this->change(fn (Inventory $i) => $i->createDevice($customerId, ((int) $this->post('location_id')) ?: null,
-            (string) $this->post('code'), (string) $this->post('name'), $this->note(), $this->tags(), ((int) $this->post('timeout_profile_id')) ?: null),
+            (string) $this->post('code'), (string) $this->post('name'), $this->note(), $this->tags(), ((int) $this->post('timeout_profile_id')) ?: null, $this->users() ?? []),
             static fn () => site_url("customers/{$customerId}"));
     }
 
     public function updateDevice(int $customerId, int $id): RedirectResponse
     {
         return $this->change(fn (Inventory $i) => $i->updateDevice($id, (string) $this->post('name'), $this->note(), $this->tags(),
-            ((int) $this->post('timeout_profile_id')) ?: null, ((int) $this->post('location_id')) ?: null), static fn () => site_url("customers/{$customerId}"));
+            ((int) $this->post('timeout_profile_id')) ?: null, ((int) $this->post('location_id')) ?: null, $this->users()), static fn () => site_url("customers/{$customerId}"));
+    }
+
+    /** @return list<int>|null customers using the device (checkboxes); null = field not in the form */
+    private function users(): ?array
+    {
+        if ($this->request->getPost('users_sent') === null) {
+            return null;
+        }
+
+        return array_map('intval', (array) ($this->request->getPost('users') ?? []));
     }
 
     public function deleteDevice(int $customerId, int $id): RedirectResponse

@@ -23,8 +23,20 @@ $profileSelect = static function (?int $selected) use ($profiles): string {
 
     return $html . '</select>';
 };
-// automatic tags of the device itself; further customers ("kunde:" of another customer) are own tags
-$autoTag = static fn (string $t) => in_array(explode(':', $t, 2)[0], ['standort', 'geraet'], true) || $t === 'kunde:' . $customer['code'];
+$autoTag = static fn (string $t) => in_array(explode(':', $t, 2)[0], ['kunde', 'standort', 'geraet'], true);
+// customers using a device besides the owner (1:n)
+$userBoxes = static function (array $customers, array $selected): string {
+    if ($customers === []) {
+        return '';
+    }
+    $html = '<fieldset class="device-users"><legend>' . lang('Customers.usedBy') . '</legend><input type="hidden" name="users_sent" value="1">';
+    foreach ($customers as $c) {
+        $html .= '<label class="check"><input type="checkbox" name="users[]" value="' . (int) $c['id'] . '"' . (in_array((int) $c['id'], $selected, true) ? ' checked' : '') . '> '
+            . esc($c['name']) . ' <code class="muted">' . esc($c['code']) . '</code></label>';
+    }
+
+    return $html . '</fieldset>';
+};
 ?>
 <?= $this->extend('layout') ?>
 <?= $this->section('content') ?>
@@ -112,8 +124,9 @@ $autoTag = static fn (string $t) => in_array(explode(':', $t, 2)[0], ['standort'
             <label><?= lang('Customers.code') ?><input type="text" name="code" required maxlength="32" pattern="[a-z0-9][a-z0-9\-]*" placeholder="nas05" class="code-input"></label>
             <label><?= lang('Customers.location') ?><select name="location_id"><option value="">–</option>
                 <?php foreach ($locations as $l): ?><option value="<?= (int) $l['id'] ?>"><?= esc($l['name']) ?></option><?php endforeach ?></select></label>
-            <label><?= lang('Customers.extraTags') ?><input type="text" name="tags" autocomplete="off" placeholder="nas, qnap"<?= rk_tag_picker_attrs('multi', ['standort', 'geraet']) ?>></label>
+            <label><?= lang('Customers.extraTags') ?><input type="text" name="tags" autocomplete="off" placeholder="nas, qnap"<?= rk_tag_picker_attrs('multi', ['kunde', 'standort', 'geraet']) ?>></label>
             <label><?= lang('Customers.profile') ?><?= $profileSelect(null) ?></label>
+            <?= $userBoxes($customers ?? [], []) ?>
             <button type="submit" class="button button-primary"><?= lang('Customers.createDevice') ?></button>
         <?= form_close() ?>
         <?php if ($devices !== []): ?>
@@ -129,16 +142,18 @@ $autoTag = static fn (string $t) => in_array(explode(':', $t, 2)[0], ['standort'
                                 <label><?= lang('Customers.name') ?><input type="text" name="name" required maxlength="128" value="<?= esc($d['name'], 'attr') ?>"></label>
                                 <label title="<?= esc(lang('Customers.moveHint'), 'attr') ?>"><?= lang('Customers.location') ?><select name="location_id"><option value="">–</option>
                                     <?php foreach ($locations as $l): ?><option value="<?= (int) $l['id'] ?>" <?= (int) $l['id'] === (int) $d['location_id'] ? 'selected' : '' ?>><?= esc($l['name']) ?></option><?php endforeach ?></select></label>
-                                <label><?= lang('Customers.extraTags') ?><input type="text" name="tags" autocomplete="off" value="<?= esc(implode(', ', $own), 'attr') ?>"<?= rk_tag_picker_attrs('multi', ['standort', 'geraet']) ?>></label>
+                                <label><?= lang('Customers.extraTags') ?><input type="text" name="tags" autocomplete="off" value="<?= esc(implode(', ', $own), 'attr') ?>"<?= rk_tag_picker_attrs('multi', ['kunde', 'standort', 'geraet']) ?>></label>
                                 <label><?= lang('Customers.profile') ?><?= $profileSelect($d['timeout_profile_id'] !== null ? (int) $d['timeout_profile_id'] : null) ?></label>
                                 <label><?= lang('Senders.note') ?><input type="text" name="note" maxlength="255" value="<?= esc($d['note'] ?? '', 'attr') ?>"></label>
+                                <?= $userBoxes($customers ?? [], array_column($users[$id] ?? [], 'id')) ?>
                                 <button type="submit" class="button button-primary"><?= lang('Rules.save') ?></button>
                                 <a class="button" href="<?= site_url('customers/' . $cid) ?>"><?= lang('Rules.cancel') ?></a>
                             <?= form_close() ?>
                         </td></tr>
                     <?php else: ?>
                         <tr class="<?= $mon && $mon['overdue'] ? 'overdue' : '' ?>">
-                            <td><strong><?= esc($d['name']) ?></strong><br><code class="muted"><?= esc($d['path']) ?></code><?php if ($d['note']): ?><br><span class="muted"><?= esc($d['note']) ?></span><?php endif ?></td>
+                            <td><strong><?= esc($d['name']) ?></strong><br><code class="muted"><?= esc($d['path']) ?></code><?php if ($d['note']): ?><br><span class="muted"><?= esc($d['note']) ?></span><?php endif ?>
+                                <?php if (! empty($users[$id])): ?><br><span class="muted"><?= lang('Customers.usedBy') ?>: <?= implode(', ', array_map(static fn ($u) => '<a href="' . site_url('customers/' . $u['id']) . '">' . esc($u['name']) . '</a>', $users[$id])) ?></span><?php endif ?></td>
                             <td><?= esc($d['location_name'] ?? '–') ?></td>
                             <td><?php foreach ($tags[$id] ?? [] as $t): ?><a class="<?= rk_tag_class($t) ?>" href="<?= site_url('/') ?>?range=all&amp;tag%5B0%5D=<?= urlencode($t) ?>"><?= esc(rk_tag_label($t)) ?></a><?php endforeach ?></td>
                             <td><?php if ($mon): ?>
