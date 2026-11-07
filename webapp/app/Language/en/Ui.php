@@ -110,4 +110,5 @@ return [
     'ago_days' => '{0, plural, =1{1 day ago} other{# days ago}}',
     'ago_months' => '{0, plural, =1{1 month ago} other{# months ago}}',
     'ago_years' => '{0, plural, =1{1 year ago} other{# years ago}}',
+    'showMore' => 'show {0} more ({1} left)',
 ];

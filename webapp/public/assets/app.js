@@ -355,3 +355,15 @@ document.addEventListener('change', function (e) {
     date.hidden = e.target.value !== 'waiting';
     date.required = e.target.value === 'waiting';
 });
+
+// Sidebar tag tree: show the next 15 tags of a type (0.3.33)
+document.addEventListener('click', function (e) {
+    const btn = e.target.closest ? e.target.closest('.tree-show-more') : null;
+    if (!btn) return;
+    const step = parseInt(btn.dataset.step, 10) || 15;
+    const rest = Array.prototype.slice.call(btn.closest('ul').querySelectorAll('li.tree-more[hidden]'));
+    rest.slice(0, step).forEach(function (li) { li.hidden = false; });
+    const left = rest.length - step;
+    if (left <= 0) { btn.closest('li').remove(); return; }
+    btn.textContent = btn.dataset.label.replace('{0}', Math.min(left, step)).replace('{1}', left);
+});

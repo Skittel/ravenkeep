@@ -203,6 +203,47 @@ final class MessagesTest extends CIUnitTestCase
         $this->assertSame('vor 1 Jahr', rk_relative_time('2025-11-01 12:00:00', $now));
     }
 
+    public function testSidebarCountsFollowTheFilterAndHideEmptyEntries(): void
+    {
+        $runner = new App\Libraries\Rules\RuleRunner($this->db, config('Ravenkeep')->archivePath);
+        $tag    = fn (int $id, string $name) => $this->db->table('message_tags')->insert(['message_id' => $id, 'tag_id' => $runner->tagId($name), 'source' => 'manual']);
+        $tag($this->acceptedId, 'source:ipmi');
+        $tag($this->acceptedId, 'kunde:acme');
+        $tag($this->pendingId, 'source:pbs');
+        $tag($this->pendingId, 'kunde:acme');
+
+        $all = $this->get('/')->getBody();
+        $this->assertStringContainsString('acme <span class="count">2</span>', $all);
+        $this->assertStringContainsString('class="tree-type ">source <span class="count">2</span>', $all);
+        $this->assertStringContainsString('ipmi <span class="count">1</span>', $all);
+
+        // with source:ipmi selected: pbs has no message left and disappears, acme counts 1, status counts follow
+        $ipmi = $this->get('/?tag[]=source:ipmi')->getBody();
+        $this->assertStringNotContainsString('>pbs <span', $ipmi);
+        $this->assertStringContainsString('acme <span class="count">1</span>', $ipmi);
+        $this->assertStringContainsString('ipmi <span class="count">1</span>', $ipmi);
+        $this->assertStringContainsString('class="tree-type ">source <span class="count">1</span>', $ipmi);
+        $this->assertStringNotContainsString('dot-pending', explode('<h2>', $ipmi)[1] ?? ''); // status pending: 0, hidden
+    }
+
+    public function testSidebarSortsByCountAndShowsFifteenPerType(): void
+    {
+        $runner = new App\Libraries\Rules\RuleRunner($this->db, config('Ravenkeep')->archivePath);
+        for ($i = 1; $i <= 20; $i++) {
+            $this->db->table('message_tags')->insert(['message_id' => $this->acceptedId, 'tag_id' => $runner->tagId(sprintf('typ:t%02d', $i)), 'source' => 'manual']);
+        }
+        $this->db->table('message_tags')->insert(['message_id' => $this->pendingId, 'tag_id' => $runner->tagId('typ:t20'), 'source' => 'manual']);
+
+        $tree = (new App\Models\MessageModel())->tagTree([]);
+        $this->assertSame('typ:t20', array_key_first($tree['typ'])); // 2 messages: first
+        $this->assertSame(['typ:t01', 'typ:t02'], array_slice(array_keys($tree['typ']), 1, 2)); // then by name
+
+        $body = $this->get('/')->getBody();
+        $this->assertSame(5, substr_count($body, 'class="tree-more" hidden'));
+        $this->assertStringContainsString('weitere 5 anzeigen (noch 5)', $body);
+        $this->assertStringContainsString('data-label="weitere {0} anzeigen (noch {1})"', $body);
+    }
+
     public function testHtmlViewIsSandboxed(): void
     {
         $result = $this->get("messages/{$this->acceptedId}/html");

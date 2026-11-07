@@ -46,9 +46,10 @@ class Messages extends BaseController
         return view('messages/index', [
             'filter'   => $filter + ['page' => $page > 1 ? $page : null],
             'messages' => $messages,
-            'counts'   => (new MessageModel())->countsByStatus($filter['range']),
+            'counts'   => (new MessageModel())->countsByStatus($filter),
             'tags'     => (new MessageModel())->tagsFor(array_column($messages, 'id')),
-            'tagTree'  => (new MessageModel())->tagTree($filter['range']),
+            'tagTree'  => (new MessageModel())->tagTree($filter),
+            'typeCounts' => (new MessageModel())->tagTypeCounts($filter),
             'total'    => $total,
             'page'     => $page,
             'pages'    => $pages,

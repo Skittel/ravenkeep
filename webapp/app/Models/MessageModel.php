@@ -105,44 +105,80 @@ class MessageModel extends Model
         return $result;
     }
 
+    /** Number of tags per type shown before "show 15 more" in the sidebar */
+    public const TREE_PAGE = 15;
+
     /**
-     * Tag tree for the sidebar: type => [tag name => message count] (untyped tags under "").
+     * Tag tree for the sidebar, counted over the messages of the current filter (time range,
+     * status, search, selected tags): type => [tag name => message count], most messages first.
+     * Tags without a message in the filter are left out; selected tags are always kept.
+     * Untyped tags under "".
+     *
+     * @param array{range?: string|null, status?: string|null, q?: string|null, tag?: list<string>|null} $filter
      *
      * @return array<string, array<string, int>>
      */
-    public function tagTree(?string $range = null): array
+    public function tagTree(array $filter = []): array
     {
-        $builder = $this->db->table('message_tags mt')->select('t.name, COUNT(*) AS n')->join('tags t', 't.id = mt.tag_id');
-        if (($since = self::since($range)) !== null) {
-            $builder->join('messages m', 'm.id = mt.message_id')->where('m.received_at >=', $since);
-        }
-        $rows = $builder->groupBy('t.name')->orderBy('t.name')->get()->getResultArray();
+        $rows = $this->db->query('SELECT t.name, COUNT(*) AS n FROM message_tags mt JOIN tags t ON t.id = mt.tag_id
+            JOIN (' . self::filteredIds($filter) . ') f ON f.id = mt.message_id GROUP BY t.name')->getResultArray();
         $tree = [];
         foreach ($rows as $row) {
-            $type = str_contains($row['name'], ':') ? explode(':', $row['name'], 2)[0] : '';
-            $tree[$type][$row['name']] = (int) $row['n'];
+            $tree[self::typeOf($row['name'])][$row['name']] = (int) $row['n'];
         }
+        foreach (self::tagFilter($filter) as $tag) { // a selected tag stays visible to remove it again
+            if (! str_ends_with($tag, ':*')) {
+                $tree[self::typeOf($tag)][$tag] ??= 0;
+            }
+        }
+        foreach ($tree as &$names) {
+            uksort($names, static fn (string $a, string $b): int => [$names[$b], $a] <=> [$names[$a], $b]);
+        }
+        unset($names);
         ksort($tree);
 
         return $tree;
     }
 
     /**
-     * Number of messages per status in the time range, for the sidebar.
+     * Messages per tag type in the current filter (each message counted once per type).
      *
      * @return array<string, int>
      */
-    public function countsByStatus(?string $range = null): array
+    public function tagTypeCounts(array $filter = []): array
     {
-        $counts  = array_fill_keys(self::STATUSES, 0);
-        $builder = $this->builder()->select('status, COUNT(*) AS n');
-        if (($since = self::since($range)) !== null) {
-            $builder->where('received_at >=', $since);
-        }
-        foreach ($builder->groupBy('status')->get()->getResultArray() as $row) {
+        $rows = $this->db->query("SELECT IF(LOCATE(':', t.name) > 0, SUBSTRING_INDEX(t.name, ':', 1), '') AS type, COUNT(DISTINCT mt.message_id) AS n
+            FROM message_tags mt JOIN tags t ON t.id = mt.tag_id JOIN (" . self::filteredIds($filter) . ') f ON f.id = mt.message_id GROUP BY type')->getResultArray();
+
+        return array_map('intval', array_column($rows, 'n', 'type'));
+    }
+
+    /**
+     * Number of messages per status, for the sidebar: counted with the other filters
+     * (time range, search, selected tags), not with the status filter itself.
+     *
+     * @return array<string, int>
+     */
+    public function countsByStatus(array $filter = []): array
+    {
+        $counts = array_fill_keys(self::STATUSES, 0);
+        $rows   = (new self())->filtered(['status' => null] + $filter)->builder()->select('status, COUNT(*) AS n')
+            ->groupBy('status')->get()->getResultArray();
+        foreach ($rows as $row) {
             $counts[$row['status']] = (int) $row['n'];
         }
 
         return $counts;
+    }
+
+    /** SQL selecting the ids of the messages of a filter. */
+    private static function filteredIds(array $filter): string
+    {
+        return (new self())->filtered($filter)->builder()->select('messages.id')->getCompiledSelect();
+    }
+
+    private static function typeOf(string $name): string
+    {
+        return str_contains($name, ':') ? explode(':', $name, 2)[0] : '';
     }
 }

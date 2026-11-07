@@ -9,7 +9,8 @@
  * @var string|null $pane
  * @var int $selected
  * @var array<int, list<array>> $tags
- * @var array<string, array<string, int>> $tagTree
+ * @var array<string, array<string, int>> $tagTree tags in the current filter, most messages first
+ * @var array<string, int> $typeCounts messages per tag type in the current filter
  */
 $statusLabels = [
     'accepted' => lang('Ui.statusAccepted'),
@@ -38,6 +39,7 @@ $statusLabels = [
             <li><a href="<?= rk_query($filter, ['status' => null, 'page' => null]) ?>" class="<?= empty($filter['status']) ? 'active' : '' ?>">
                 <?= lang('Ui.all') ?> <span class="count"><?= array_sum($counts) ?></span></a></li>
             <?php foreach ($statusLabels as $status => $label): ?>
+                <?php if ($counts[$status] === 0 && ($filter['status'] ?? '') !== $status) { continue; } ?>
                 <li><a href="<?= rk_query($filter, ['status' => $status, 'page' => null]) ?>" class="<?= ($filter['status'] ?? '') === $status ? 'active' : '' ?>">
                     <span class="dot dot-<?= $status ?>"></span><?= esc($label) ?> <span class="count"><?= $counts[$status] ?></span></a></li>
             <?php endforeach ?>
@@ -51,13 +53,18 @@ $statusLabels = [
                 <li>
                     <?php if ($type !== ''): ?>
                         <?php $typeTag = $type . ':*'; ?>
-                        <a href="<?= rk_query($filter, rk_tag_toggle($filter, $typeTag)) ?>" class="tree-type <?= in_array($typeTag, $filter['tag'] ?? [], true) ? 'active' : '' ?>"><?= esc($type) ?> <span class="count"><?= array_sum($names) ?></span></a>
+                        <a href="<?= rk_query($filter, rk_tag_toggle($filter, $typeTag)) ?>" class="tree-type <?= in_array($typeTag, $filter['tag'] ?? [], true) ? 'active' : '' ?>"><?= esc($type) ?> <span class="count"><?= $typeCounts[$type] ?? 0 ?></span></a>
                     <?php endif ?>
-                    <ul>
-                        <?php foreach ($names as $name => $n): ?>
-                            <li><a href="<?= rk_query($filter, rk_tag_toggle($filter, $name)) ?>" class="<?= in_array($name, $filter['tag'] ?? [], true) ? 'active' : '' ?>">
+                    <ul class="tree-tags">
+                        <?php $i = 0; foreach ($names as $name => $n): ?>
+                            <?php $selectedTag = in_array($name, $filter['tag'] ?? [], true); $over = $i++ >= App\Models\MessageModel::TREE_PAGE && ! $selectedTag; ?>
+                            <li<?= $over ? ' class="tree-more" hidden' : '' ?>><a href="<?= rk_query($filter, rk_tag_toggle($filter, $name)) ?>" class="<?= in_array($name, $filter['tag'] ?? [], true) ? 'active' : '' ?>">
                                 <span class="<?= rk_tag_class($name) ?> tag-dot"></span><?= esc(str_contains($name, ':') ? explode(':', $name, 2)[1] : $name) ?> <span class="count"><?= $n ?></span></a></li>
                         <?php endforeach ?>
+                        <?php $hidden = count(array_filter(array_keys($names), static fn ($nm) => ! in_array($nm, $filter['tag'] ?? [], true))) - App\Models\MessageModel::TREE_PAGE; ?>
+                        <?php if ($hidden > 0): ?>
+                            <li><button type="button" class="link tree-show-more" data-step="<?= App\Models\MessageModel::TREE_PAGE ?>" data-label="<?= esc(lang('Ui.showMore'), 'attr') ?>"><?= lang('Ui.showMore', [min($hidden, App\Models\MessageModel::TREE_PAGE), $hidden]) ?></button></li>
+                        <?php endif ?>
                     </ul>
                 </li>
             <?php endforeach ?>
