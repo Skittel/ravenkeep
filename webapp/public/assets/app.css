@@ -345,3 +345,10 @@ table.devices code { font-size: 11px; }
 .device-users .check { margin: 4px 0; }
 button.link { background: none; border: 0; padding: 4px 8px; color: var(--accent); cursor: pointer; font: inherit; font-size: 12px; }
 button.link:hover { text-decoration: underline; }
+
+/* subject patterns (E-029) */
+.pattern-form input[name=pattern], .pattern-form input[name=test_subject], .pattern-form input[name=test_pattern] { min-width: 340px; flex: 1 1 340px; }
+.pattern-test { margin-top: 8px; }
+.pattern-suggestions .rule-form { margin: 0 0 4px; }
+.pattern-suggestions ul.examples { margin: 0; padding-left: 18px; font-size: 12px; color: var(--muted); }
+.pattern-unknown .address-actions label { display: inline-flex; gap: 6px; align-items: center; font-size: 12px; color: var(--muted); }

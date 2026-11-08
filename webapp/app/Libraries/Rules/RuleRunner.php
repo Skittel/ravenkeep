@@ -3,6 +3,7 @@
 namespace App\Libraries\Rules;
 
 use App\Libraries\Inventory\Inventory;
+use App\Libraries\Inventory\PatternService;
 use App\Libraries\MessageReader;
 use App\Libraries\Senders\SenderRules;
 use CodeIgniter\Database\BaseConnection;
@@ -21,6 +22,9 @@ use Throwable;
  *   address – tags from the recipient address of a domain with parse_address (E-016) and from the
  *             verified sender address of a domain with a tag meaning (E-020, E-021)
  *   sender  – fixed tags of the matching sender allow rules (E-022)
+ *   pattern – customer, location and device named in the subject, read with the subject patterns of
+ *             the message's source (E-029); only if no address named a device. The customer of the
+ *             subject replaces the one of the address (the address only names the reporting channel).
  * Fixed rules always win: if a rule sets a tag of a type (e.g. kunde:), automatic tags of that
  * type are dropped.
  */
@@ -48,6 +52,12 @@ class RuleRunner
     /** @var list<string>|null domains whose recipient addresses carry tags */
     private ?array $addressDomains = null;
 
+    /** @var array<string, list<array{id: int, pattern: string}>>|null subject patterns per source (E-029) */
+    private ?array $subjectPatterns = null;
+
+    /** @var array|null known names and aliases for subject patterns (PatternService::lookup) */
+    private ?array $nameLookup = null;
+
     public function __construct(private readonly BaseConnection $db, private readonly ?string $archivePath = null)
     {
     }
@@ -69,6 +79,8 @@ class RuleRunner
         $this->addressDomains = null;
         $this->addressKnown   = null;
         $this->senderRuleTags = null;
+        $this->subjectPatterns = null;
+        $this->nameLookup     = null;
     }
 
     /** Number of messages still waiting for (re-)evaluation. */
@@ -115,14 +127,17 @@ class RuleRunner
         $manualNames = array_column($manual, 'name');
 
         $auto = $message['status'] === 'accepted' ? $this->automaticTags($message, $manualNames)
-            : ['device' => [], 'address' => [], 'sender' => [], 'unknown' => null, 'sender_unknown' => null, 'sender_unverified' => null];
-        [$deviceTags, $addressTags, $senderTags] = [$auto['device'], $auto['address'], $auto['sender']];
-        $update['address_unknown']   = $auto['unknown'] === null ? null : json_encode($auto['unknown'], JSON_THROW_ON_ERROR);
-        $update['sender_unknown']    = $auto['sender_unknown'] === null ? null : json_encode($auto['sender_unknown'], JSON_THROW_ON_ERROR);
-        $update['sender_unverified'] = $auto['sender_unverified'];
+            : ['device' => [], 'address' => [], 'sender' => [], 'pattern' => [], 'unknown' => null, 'sender_unknown' => null, 'sender_unverified' => null,
+                'pattern_id' => null, 'subject_unknown' => null];
+        [$deviceTags, $addressTags, $senderTags, $patternTags] = [$auto['device'], $auto['address'], $auto['sender'], $auto['pattern']];
+        $update['address_unknown']    = $auto['unknown'] === null ? null : json_encode($auto['unknown'], JSON_THROW_ON_ERROR);
+        $update['sender_unknown']     = $auto['sender_unknown'] === null ? null : json_encode($auto['sender_unknown'], JSON_THROW_ON_ERROR);
+        $update['sender_unverified']  = $auto['sender_unverified'];
+        $update['subject_pattern_id'] = $auto['pattern_id'];
+        $update['subject_unknown']    = $auto['subject_unknown'] === null ? null : json_encode($auto['subject_unknown'], JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE);
 
         $tags = $message['status'] === 'accepted'
-            ? $this->engine()->evaluate($message, $manualNames, [...$deviceTags, ...$addressTags, ...$senderTags])['tags'] : [];
+            ? $this->engine()->evaluate($message, $manualNames, [...$deviceTags, ...$addressTags, ...$senderTags, ...$patternTags])['tags'] : [];
 
         // Fixed rules win over automatic tags of the same type
         $ruleTypes = array_filter(array_map([TagName::class, 'type'], array_keys($tags)));
@@ -131,10 +146,11 @@ class RuleRunner
             $deviceTags  = array_values(array_filter($deviceTags, $keep));
             $addressTags = array_values(array_filter($addressTags, $keep));
             $senderTags  = array_values(array_filter($senderTags, $keep));
+            $patternTags = array_values(array_filter($patternTags, $keep));
         }
 
         $this->db->transStart();
-        $this->db->table('message_tags')->where('message_id', $message['id'])->whereIn('source', ['rule', 'device', 'address', 'sender'])->delete();
+        $this->db->table('message_tags')->where('message_id', $message['id'])->whereIn('source', ['rule', 'device', 'address', 'sender', 'pattern'])->delete();
         foreach ($deviceTags as $name) {
             $this->db->table('message_tags')->insert(['message_id' => $message['id'], 'tag_id' => $this->tagId($name), 'source' => 'device']);
         }
@@ -144,8 +160,11 @@ class RuleRunner
         foreach ($senderTags as $name) {
             $this->db->table('message_tags')->insert(['message_id' => $message['id'], 'tag_id' => $this->tagId($name), 'source' => 'sender']);
         }
+        foreach ($patternTags as $name) {
+            $this->db->table('message_tags')->insert(['message_id' => $message['id'], 'tag_id' => $this->tagId($name), 'source' => 'pattern']);
+        }
         foreach ($tags as $name => $ruleId) {
-            if (in_array($name, $deviceTags, true) || in_array($name, $addressTags, true) || in_array($name, $senderTags, true)) {
+            if (in_array($name, [...$deviceTags, ...$addressTags, ...$senderTags, ...$patternTags], true)) {
                 continue; // already set automatically
             }
             $this->db->table('message_tags')->insert([
@@ -166,11 +185,15 @@ class RuleRunner
      *
      * Plus the fixed tags of the allow rules the sender matches and passes (E-022).
      *
-     * @return array{device: list<string>, address: list<string>, sender: list<string>, unknown: ?list<array>, sender_unknown: ?list<array>, sender_unverified: ?string}
+     * Plus the tags named by the subject (E-029), see subjectTags().
+     *
+     * @return array{device: list<string>, address: list<string>, sender: list<string>, pattern: list<string>, unknown: ?list<array>, sender_unknown: ?list<array>, sender_unverified: ?string, pattern_id: ?int, subject_unknown: ?list<array>}
      */
     private function automaticTags(array $message, array $manualNames): array
     {
-        $out    = ['device' => [], 'address' => [], 'sender' => [], 'unknown' => null, 'sender_unknown' => null, 'sender_unverified' => null];
+        $out    = ['device' => [], 'address' => [], 'sender' => [], 'pattern' => [], 'unknown' => null, 'sender_unknown' => null, 'sender_unverified' => null,
+            'pattern_id' => null, 'subject_unknown' => null];
+        $fixed  = $this->senderRuleTagsFor($message);
         $device = [];
         $login  = false;
         if ($message['mode'] === 'auth' && ! empty($message['sasl_username'])) {
@@ -199,6 +222,9 @@ class RuleRunner
                 $out['address'] = [...$out['address'], ...$r['tags']];
                 $path ??= $r['device'];
             }
+            if ($path === null) {
+                $path = $this->subjectTags($message, [...$out['address'], ...$fixed], $out);
+            }
             if ($path !== null) {
                 $this->pathTags ??= (new Inventory($this->db, $this))->tagsByPath();
                 $device = $this->pathTags[$path] ?? [];
@@ -207,9 +233,54 @@ class RuleRunner
 
         $out['device']  = array_values(array_diff(array_unique($device), $manualNames));
         $out['address'] = array_values(array_diff(array_unique($out['address']), $manualNames, $out['device']));
-        $out['sender']  = array_values(array_diff(array_unique($this->senderRuleTagsFor($message)), $manualNames, $out['device'], $out['address']));
+        $out['pattern'] = array_values(array_diff(array_unique($out['pattern']), $manualNames, $out['device'], $out['address']));
+        $out['sender']  = array_values(array_diff(array_unique($fixed), $manualNames, $out['device'], $out['address'], $out['pattern']));
 
         return $out;
+    }
+
+    /**
+     * Subject patterns of the message's sources (source tags of address and allow rule, first level):
+     * the first pattern that matches decides. Known values give the pattern tags, and the customer,
+     * location and device tags of the address are dropped (the subject is more specific). Unknown
+     * values give no tags and are noted for clearing up (E-019).
+     *
+     * @param list<string> $tags automatic tags found so far
+     *
+     * @return string|null path of the device named by the subject
+     */
+    private function subjectTags(array $message, array $tags, array &$out): ?string
+    {
+        $subject = (string) ($message['subject'] ?? '');
+        if ($subject === '') {
+            return null;
+        }
+        $this->subjectPatterns ??= (new PatternService($this->db, $this))->patternsBySource();
+        $sources = array_unique(array_map(static fn (string $t): string => explode('.', TagName::value($t))[0],
+            array_filter($tags, static fn (string $t): bool => TagName::type($t) === 'source')));
+        foreach ($sources as $source) {
+            foreach ($this->subjectPatterns[$source] ?? [] as $p) {
+                $values = SubjectPattern::match($p['pattern'], $subject);
+                if ($values === null) {
+                    continue;
+                }
+                $this->nameLookup ??= (new PatternService($this->db, $this))->lookup();
+                $result            = SubjectPattern::resolve($values, $this->nameLookup);
+                $out['pattern_id'] = $p['id'];
+                if ($result['unknown'] !== []) {
+                    $out['subject_unknown'] = $result['unknown'];
+
+                    return null;
+                }
+                $out['address'] = array_values(array_filter($out['address'],
+                    static fn (string $t): bool => ! in_array(TagName::type($t), ['kunde', 'standort', 'geraet', 'meldung'], true)));
+                $out['pattern'] = $result['tags'];
+
+                return $result['device'];
+            }
+        }
+
+        return null;
     }
 
     /**

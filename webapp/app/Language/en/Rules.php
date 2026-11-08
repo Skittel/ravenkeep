@@ -71,6 +71,7 @@ return [
     'op_has_not'       => 'is missing',
     'fromDevice' => 'automatically from the device',
     'fromSender' => 'automatically from the sender allow rule',
+    'fromPattern' => 'automatically from the subject (pattern)',
     'fromAddress' => 'automatically from the recipient address',
     'tags' => 'Tags',
     'invalid_tag_type' => 'Unknown tag type – create it under Tags → Tag types.',

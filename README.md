@@ -46,6 +46,11 @@ message that matters, or the one that never arrived, is easily missed.
   warning, error; not rated until content evaluation exists) and a handling
   status (new, open, done, waiting until a date), plus append-only notes with
   author and time.
+- **Subject patterns and aliases** – reports that name customer, location and
+  device in the subject ("Error report - {kunde}, {standort}, {geraet}") are
+  tagged by plain-text patterns per source, matched against code, name and
+  aliases from the inventory. Unknown values are listed for clearing up, and
+  subjects without a pattern are grouped into pattern proposals.
 
 ## Architecture
 

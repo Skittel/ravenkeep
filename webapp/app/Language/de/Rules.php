@@ -71,6 +71,7 @@ return [
     'op_has_not'       => 'fehlt',
     'fromDevice' => 'automatisch vom Gerät',
     'fromSender' => 'automatisch aus der Absender-Freigabe',
+    'fromPattern' => 'automatisch aus dem Betreff (Muster)',
     'fromAddress' => 'automatisch aus der Empfängeradresse',
     'tags' => 'Tags',
     'invalid_tag_type' => 'Unbekannter Tag-Typ – bitte unter Tags → Tag-Typen anlegen.',

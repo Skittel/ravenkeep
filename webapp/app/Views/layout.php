@@ -33,13 +33,15 @@ $user   = session('user');
                 'rules'     => ['rules', lang('Rules.nav')],
                 'tags'      => ['tags', lang('Customers.navTags')],
                 'addresses' => ['addresses', lang('Addresses.nav')],
+                'patterns'  => ['patterns', lang('Patterns.nav')],
                 'senders'   => ['senders', lang('Senders.nav')],
                 'devices'   => ['devices', lang('Devices.nav')],
                 'nodes'     => ['nodes', lang('Senders.navNodes')],
                 'settings'  => ['settings', lang('Devices.navSettings')],
             ] as $key => [$url, $label]): ?>
+                <?php $openPatterns ??= isset($user) ? (new App\Libraries\Inventory\PatternService(db_connect(), new App\Libraries\Rules\RuleRunner(db_connect())))->countUnknown() : 0; ?>
                 <?php $openAddresses ??= isset($user) ? (new App\Libraries\Inventory\AddressService(db_connect(), new App\Libraries\Rules\RuleRunner(db_connect())))->countUnknown() : 0; ?>
-                <a href="<?= site_url($url) ?>" class="<?= $active === $key ? 'active' : '' ?>"><?= $label ?><?php if ($key === 'addresses' && $openAddresses > 0): ?> <span class="nav-count"><?= $openAddresses ?></span><?php endif ?></a>
+                <a href="<?= site_url($url) ?>" class="<?= $active === $key ? 'active' : '' ?>"><?= $label ?><?php if ($key === 'addresses' && $openAddresses > 0): ?> <span class="nav-count"><?= $openAddresses ?></span><?php endif ?><?php if ($key === 'patterns' && $openPatterns > 0): ?> <span class="nav-count"><?= $openPatterns ?></span><?php endif ?></a>
             <?php endforeach ?>
         </nav>
         <form class="search" method="get" action="<?= site_url('/') ?>">
