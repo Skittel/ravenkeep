@@ -4,6 +4,7 @@ namespace App\Libraries;
 
 use RuntimeException;
 use ZBateson\MailMimeParser\Message;
+use ZBateson\MailMimeParser\Message\IMessagePart;
 
 /**
  * Reads an archived original message (EML) and extracts what the reading pane shows.
@@ -39,12 +40,22 @@ class MessageReader
 
     public function textBody(): ?string
     {
-        return $this->message->getTextContent();
+        return $this->mislabelled($this->message->getTextPart()) ?? $this->message->getTextContent();
     }
 
     public function htmlBody(): ?string
     {
-        return $this->message->getHtmlContent();
+        return $this->mislabelled($this->message->getHtmlPart()) ?? $this->message->getHtmlContent();
+    }
+
+    /** Content of a part labelled Latin that really is UTF-8 (T-29), else null. */
+    private function mislabelled(?IMessagePart $part): ?string
+    {
+        if ($part === null || ! Charset::isLatinLabel($part->getCharset())) {
+            return null;
+        }
+
+        return Charset::mislabelledBody((string) $part->getBinaryContentStream()?->getContents(), $part->getCharset());
     }
 
     /**

@@ -2,6 +2,7 @@
 
 namespace App\Libraries\Collector;
 
+use App\Libraries\Charset;
 use CodeIgniter\Database\BaseConnection;
 use DateTimeImmutable;
 use DateTimeZone;
@@ -110,10 +111,10 @@ class Collector
             'client_hostname'     => $this->cut($client['hostname'] ?? '', 255),
             'client_ptr'          => $this->cut(implode(', ', $client['ptr'] ?? []), 255),
             'client_helo'         => $this->cut($client['helo'] ?? '', 255),
-            'header_from'         => $this->cut($headers['from'] ?? null, 512),
+            'header_from'         => $this->cut(Charset::repairHeader($headers['from'] ?? null, Charset::rawHeader($eml, 'From')), 512),
             'header_from_address' => $this->cut($headers['from_address'] ?? null, 255),
-            'header_to'           => $headers['to'] ?? null,
-            'subject'             => $this->cut($headers['subject'] ?? null, 998),
+            'header_to'           => Charset::repairHeader($headers['to'] ?? null, Charset::rawHeader($eml, 'To')),
+            'subject'             => $this->cut(Charset::repairHeader($headers['subject'] ?? null, Charset::rawHeader($eml, 'Subject')), 998), // T-29
             'header_date'         => $this->cut($headers['date'] ?? null, 128),
             'message_id'          => $this->cut($headers['message_id'] ?? null, 512),
             'size'                => (int) ($meta['size'] ?? strlen($eml)),
