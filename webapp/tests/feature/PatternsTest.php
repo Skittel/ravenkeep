@@ -120,6 +120,18 @@ final class PatternsTest extends CIUnitTestCase
         $this->patterns->addAlias('customer', $this->initech, 'initech-de'); // same key
     }
 
+    public function testOptionalDeviceIsIgnoredWhenUnknown(): void
+    {
+        $this->patterns->addPattern('n-sight', 'Fehlerbericht - {kunde}, {standort}, {geraet?}');
+        $id = $this->addMessage('Fehlerbericht - Initech HH, Cloud, banking01');
+        $this->assertSame(['kunde:initech' => 'pattern', 'source:n-sight' => 'address', 'standort:initech.cloud' => 'pattern'], $this->tagsOf($id));
+        $this->assertNull($this->db->table('messages')->where('id', $id)->get()->getRowArray()['subject_unknown']);
+        $this->assertSame([], $this->patterns->unknown());
+        // a known device is still used
+        $known = $this->addMessage('Fehlerbericht - Initech HH, Cloud, srv01');
+        $this->assertArrayHasKey('geraet:initech.srv01', $this->tagsOf($known));
+    }
+
     public function testUnknownDeviceCanBeCreatedFromTheList(): void
     {
         $this->patterns->addPattern('n-sight', 'Fehlerbericht - {kunde}, {standort}, {geraet}');

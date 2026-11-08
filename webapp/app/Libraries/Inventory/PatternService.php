@@ -215,7 +215,7 @@ class PatternService
         foreach ($patterns as $p) {
             $values = SubjectPattern::match($p['pattern'], $subject);
             if ($values !== null) {
-                return ['pattern' => $p['pattern'], 'pattern_id' => $p['id'], 'values' => $values, 'result' => SubjectPattern::resolve($values, $this->lookup())];
+                return ['pattern' => $p['pattern'], 'pattern_id' => $p['id'], 'values' => $values, 'result' => SubjectPattern::resolve($values, $this->lookup(), SubjectPattern::optional($p['pattern']))];
             }
         }
 

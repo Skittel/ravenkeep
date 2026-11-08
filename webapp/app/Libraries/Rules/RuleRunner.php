@@ -265,7 +265,7 @@ class RuleRunner
                     continue;
                 }
                 $this->nameLookup ??= (new PatternService($this->db, $this))->lookup();
-                $result            = SubjectPattern::resolve($values, $this->nameLookup);
+                $result            = SubjectPattern::resolve($values, $this->nameLookup, SubjectPattern::optional($p['pattern']));
                 $out['pattern_id'] = $p['id'];
                 if ($result['unknown'] !== []) {
                     $out['subject_unknown'] = $result['unknown'];

@@ -3,7 +3,7 @@
 return [
     'nav'             => 'Muster',
     'title'           => 'Betreffmuster',
-    'hint'            => 'Viele Überwachungssysteme nennen Kunde, Standort und Gerät im Betreff, z. B. „Fehlerbericht - Kunde, Standort, Gerät“. Ein Muster beschreibt so einen Betreff mit Platzhaltern: {kunde} (Pflicht), {standort}, {geraet} und {*} für beliebigen Text. Es gilt für die Mails einer Quelle und nur, wenn die Adresse kein Gerät nennt. Erkannte Werte werden mit Kürzel, Name und Aliassen aus dem Inventar verglichen (Groß-/Kleinschreibung, Umlaute, Leer- und Sonderzeichen egal). Wie bei Adressen entstehen Tags nur aus bekannten Werten (E-019); der Kunde aus dem Betreff ersetzt den Kunden der Adresse (E-029).',
+    'hint'            => 'Viele Überwachungssysteme nennen Kunde, Standort und Gerät im Betreff, z. B. „Fehlerbericht - Kunde, Standort, Gerät“. Ein Muster beschreibt so einen Betreff mit Platzhaltern: {kunde} (Pflicht), {standort}, {geraet} und {*} für beliebigen Text. Mit Fragezeichen – {standort?}, {geraet?} – ist ein Platzhalter optional: bekannter Wert wird genutzt, unbekannter ignoriert und nicht gemeldet (z. B. für Kunden, deren Geräte bewusst nicht im Inventar stehen; gilt dann für alle Kunden des Musters). Es gilt für die Mails einer Quelle und nur, wenn die Adresse kein Gerät nennt. Erkannte Werte werden mit Kürzel, Name und Aliassen aus dem Inventar verglichen (Groß-/Kleinschreibung, Umlaute, Leer- und Sonderzeichen egal). Wie bei Adressen entstehen Tags nur aus bekannten Werten (E-019); der Kunde aus dem Betreff ersetzt den Kunden der Adresse (E-029).',
     'none'            => 'Noch keine Muster.',
     'source'          => 'Quelle',
     'pattern'         => 'Muster',
@@ -56,7 +56,7 @@ return [
     'noSuggestions'   => 'Keine Vorschläge.',
     'examples'        => 'Beispiele',
     'paneHint'        => 'Betreff: Wert nicht zugeordnet',
-    'invalid_pattern' => 'Ungültiges Muster: {kunde} ist Pflicht, erlaubt sind {kunde}, {standort}, {geraet} (je einmal) und {*}; zwei Platzhalter dürfen nicht direkt aufeinander folgen, max. 255 Zeichen.',
+    'invalid_pattern' => 'Ungültiges Muster: {kunde} ist Pflicht, erlaubt sind {kunde}, {standort}, {geraet} (je einmal, die beiden letzten auch optional als {standort?} / {geraet?}) und {*}; zwei Platzhalter dürfen nicht direkt aufeinander folgen, max. 255 Zeichen.',
     'invalid_pattern_exists' => 'Dieses Muster gibt es für die Quelle schon.',
     'invalid_source'  => 'Unbekannte Quelle.',
     'invalid_alias'   => 'Ungültiger Alias (muss Buchstaben oder Ziffern enthalten, max. 128 Zeichen).',

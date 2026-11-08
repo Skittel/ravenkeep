@@ -76,6 +76,33 @@ final class SubjectPatternTest extends CIUnitTestCase
         $this->assertSame('ambiguous', $r['unknown'][0]['part']);
     }
 
+    public function testOptionalPlaceholdersAreIgnoredWhenUnknown(): void
+    {
+        $p = SubjectPattern::normalize('Error report - {kunde}, {standort?}, {geraet?}');
+        $this->assertSame(['standort', 'geraet'], SubjectPattern::optional($p));
+        $values = SubjectPattern::match($p, 'Error report - Acme, Branch, banking01');
+        $this->assertSame(['kunde' => 'Acme', 'standort' => 'Branch', 'geraet' => 'banking01'], $values);
+        // unknown optional values: no error, only the known parts are tagged
+        $r = SubjectPattern::resolve($values, self::KNOWN, SubjectPattern::optional($p));
+        $this->assertSame(['kunde:acme'], $r['tags']);
+        $this->assertNull($r['device']);
+        $this->assertSame([], $r['unknown']);
+        // known optional values are used
+        $r = SubjectPattern::resolve(['kunde' => 'acme', 'standort' => 'Cloud', 'geraet' => 'srv01'], self::KNOWN, ['standort', 'geraet']);
+        $this->assertSame(['kunde:acme', 'standort:acme.cloud', 'geraet:acme.srv01'], $r['tags']);
+        // only the optional part is lenient
+        $r = SubjectPattern::resolve(['kunde' => 'acme', 'standort' => 'Branch', 'geraet' => 'x'], self::KNOWN, ['geraet']);
+        $this->assertSame('location', $r['unknown'][0]['part']);
+        foreach (['{kunde?} {geraet}', '{kunde} {geraet} {geraet?}', '{kunde} {*?}'] as $bad) {
+            try {
+                SubjectPattern::normalize($bad);
+                $this->fail('accepted: ' . $bad);
+            } catch (InvalidArgumentException) {
+                $this->addToAssertionCount(1);
+            }
+        }
+    }
+
     public function testSuggesterFindsTemplatesAndAssignsPlaceholders(): void
     {
         $rows = [];

@@ -12,6 +12,8 @@ use Normalizer;
  *   Fehlerbericht - {kunde}, {standort}, {geraet}
  *   {kunde}  customer (required)        {standort}  location of that customer
  *   {geraet} device of that customer    {*}         anything, ignored
+ *   {standort?} {geraet?}  optional: used if known, otherwise ignored (not reported), e.g. for a
+ *                          customer whose many devices are deliberately not in the inventory
  * Text outside the placeholders must match literally (case-insensitive, any run of white space
  * matches any white space). A pattern applies to the messages of one source (source tag).
  *
@@ -29,6 +31,9 @@ final class SubjectPattern
 
     public const PLACEHOLDERS = [self::CUSTOMER, self::LOCATION, self::DEVICE, self::ANY];
 
+    /** suffix of an optional placeholder: {geraet?} */
+    public const OPTIONAL = '?';
+
     /** part names of unknown values (as in AddressTags) */
     public const PART = [self::CUSTOMER => 'customer', self::LOCATION => 'location', self::DEVICE => 'device'];
 
@@ -45,8 +50,9 @@ final class SubjectPattern
             throw new InvalidArgumentException('pattern');
         }
         preg_match_all('/\{([^{}]*)\}/', $pattern, $m);
-        $named = array_filter($m[1], static fn (string $p): bool => $p !== self::ANY);
-        if (array_diff($m[1], self::PLACEHOLDERS) !== [] || count($named) !== count(array_unique($named))
+        $base  = array_map(static fn (string $p): string => in_array($p, [self::LOCATION . self::OPTIONAL, self::DEVICE . self::OPTIONAL], true) ? rtrim($p, self::OPTIONAL) : $p, $m[1]);
+        $named = array_filter($base, static fn (string $p): bool => $p !== self::ANY);
+        if (array_diff($base, self::PLACEHOLDERS) !== [] || count($named) !== count(array_unique($named))
             || ! in_array(self::CUSTOMER, $named, true) || preg_match('/[{}]/', (string) preg_replace('/\{[^{}]*\}/', '', $pattern))
             || preg_match('/\}\{/', $pattern)) { // two placeholders side by side cannot be told apart
             throw new InvalidArgumentException('pattern');
@@ -61,7 +67,7 @@ final class SubjectPattern
         $out = '';
         foreach (preg_split('/(\{[^{}]*\})/', $pattern, -1, PREG_SPLIT_DELIM_CAPTURE | PREG_SPLIT_NO_EMPTY) ?: [] as $part) {
             if (preg_match('/^\{(.*)\}$/', $part, $p)) {
-                $out .= $p[1] === self::ANY ? '.*?' : '(?<' . $p[1] . '>.+?)';
+                $out .= $p[1] === self::ANY ? '.*?' : '(?<' . rtrim($p[1], self::OPTIONAL) . '>.+?)';
             } else {
                 $out .= implode('\s+', array_map(static fn (string $w): string => preg_quote($w, '/'), preg_split('/\s+/u', $part) ?: []));
             }
@@ -113,6 +119,14 @@ final class SubjectPattern
         return rtrim(substr($value, 0, 32), '-');
     }
 
+    /** Optional placeholders of a pattern ({standort?}, {geraet?}). @return list<string> */
+    public static function optional(string $pattern): array
+    {
+        preg_match_all('/\{(' . self::LOCATION . '|' . self::DEVICE . ')\?\}/', $pattern, $m);
+
+        return $m[1];
+    }
+
     /**
      * Resolve captured values with the known names.
      *
@@ -121,9 +135,11 @@ final class SubjectPattern
      *        customers: key => customer codes; locations: customer code => key => location codes;
      *        devices: customer code => key => device paths (owned and used devices)
      *
+     * @param list<string> $optional placeholders whose value is ignored if unknown or ambiguous
+     *
      * @return array{tags: list<string>, device: ?string, customer: ?string, unknown: list<array{part: string, value: string, customer: ?string}>}
      */
-    public static function resolve(array $values, array $known): array
+    public static function resolve(array $values, array $known, array $optional = []): array
     {
         $none    = ['tags' => [], 'device' => null, 'customer' => null, 'unknown' => []];
         $find    = static fn (array $map, string $value): array => array_values(array_unique($map[self::key($value)] ?? []));
@@ -143,7 +159,7 @@ final class SubjectPattern
             $found = $find($known['locations'][$c] ?? [], $values[self::LOCATION]);
             if (count($found) === 1) {
                 $tags[] = 'standort:' . $c . '.' . $found[0];
-            } else {
+            } elseif (! in_array(self::LOCATION, $optional, true)) {
                 $missing[] = $unknown(self::LOCATION, $values[self::LOCATION], $c, $found !== []);
             }
         }
@@ -151,7 +167,7 @@ final class SubjectPattern
             $found = $find($known['devices'][$c] ?? [], $values[self::DEVICE]);
             if (count($found) === 1) {
                 $tags[] = 'geraet:' . ($device = $found[0]);
-            } else {
+            } elseif (! in_array(self::DEVICE, $optional, true)) {
                 $missing[] = $unknown(self::DEVICE, $values[self::DEVICE], $c, $found !== []);
             }
         }

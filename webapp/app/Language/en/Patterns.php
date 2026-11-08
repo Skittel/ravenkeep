@@ -3,7 +3,7 @@
 return [
     'nav'             => 'Patterns',
     'title'           => 'Subject patterns',
-    'hint'            => 'Many monitoring systems name customer, location and device in the subject, e.g. "Error report - customer, location, device". A pattern describes such a subject with placeholders: {kunde} (required), {standort}, {geraet} and {*} for any text. It applies to the messages of one source and only if the address names no device. Recognized values are compared with code, name and aliases from the inventory (case, umlauts, spaces and special characters do not matter). As with addresses, tags only come from known values (E-019); the customer from the subject replaces the customer of the address (E-029).',
+    'hint'            => 'Many monitoring systems name customer, location and device in the subject, e.g. "Error report - customer, location, device". A pattern describes such a subject with placeholders: {kunde} (required), {standort}, {geraet} and {*} for any text. With a question mark – {standort?}, {geraet?} – a placeholder is optional: a known value is used, an unknown one ignored and not reported (e.g. for customers whose devices are deliberately not in the inventory; applies to all customers of the pattern). It applies to the messages of one source and only if the address names no device. Recognized values are compared with code, name and aliases from the inventory (case, umlauts, spaces and special characters do not matter). As with addresses, tags only come from known values (E-019); the customer from the subject replaces the customer of the address (E-029).',
     'none'            => 'No patterns yet.',
     'source'          => 'Source',
     'pattern'         => 'Pattern',
@@ -56,7 +56,7 @@ return [
     'noSuggestions'   => 'No proposals.',
     'examples'        => 'Examples',
     'paneHint'        => 'Subject: value not assigned',
-    'invalid_pattern' => 'Invalid pattern: {kunde} is required; allowed are {kunde}, {standort}, {geraet} (once each) and {*}; two placeholders must not follow each other directly; max. 255 characters.',
+    'invalid_pattern' => 'Invalid pattern: {kunde} is required; allowed are {kunde}, {standort}, {geraet} (once each, the last two also optional as {standort?} / {geraet?}) and {*}; two placeholders must not follow each other directly; max. 255 characters.',
     'invalid_pattern_exists' => 'This pattern already exists for the source.',
     'invalid_source'  => 'Unknown source.',
     'invalid_alias'   => 'Invalid alias (must contain letters or digits, max. 128 characters).',
