@@ -55,6 +55,7 @@ class Patterns extends BaseController
             'testInput'   => ['source' => (string) $this->request->getGet('test_source'), 'subject' => $subject, 'pattern' => $tested],
             'testError'   => $error,
             'backlog'     => $this->runner()->backlog(),
+            'editPattern' => (int) $this->request->getGet('edit'),
         ]);
     }
 
@@ -62,6 +63,19 @@ class Patterns extends BaseController
     {
         return $this->change(fn (PatternService $s) => $s->addPattern((string) $this->request->getPost('source'),
             (string) $this->request->getPost('pattern')), 'added');
+    }
+
+    public function update(int $id): RedirectResponse
+    {
+        return $this->change(fn (PatternService $s) => $s->updatePattern($id, (string) $this->request->getPost('source'),
+            (string) $this->request->getPost('pattern')), 'updated');
+    }
+
+    public function toggle(int $id): RedirectResponse
+    {
+        $enabled = $this->request->getPost('enabled') === '1';
+
+        return $this->change(static fn (PatternService $s) => $s->setEnabled($id, $enabled), $enabled ? 'enabled' : 'disabled');
     }
 
     public function delete(int $id): RedirectResponse

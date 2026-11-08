@@ -352,3 +352,5 @@ button.link:hover { text-decoration: underline; }
 .pattern-suggestions .rule-form { margin: 0 0 4px; }
 .pattern-suggestions ul.examples { margin: 0; padding-left: 18px; font-size: 12px; color: var(--muted); }
 .pattern-unknown .address-actions label { display: inline-flex; gap: 6px; align-items: center; font-size: 12px; color: var(--muted); }
+.patterns tr.pattern-off code { opacity: .55; }
+.pattern-actions { white-space: nowrap; }

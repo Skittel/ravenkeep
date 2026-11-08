@@ -132,6 +132,32 @@ final class PatternsTest extends CIUnitTestCase
         $this->assertArrayHasKey('geraet:initech.srv01', $this->tagsOf($known));
     }
 
+    public function testPatternCanBeEditedAndSwitchedOff(): void
+    {
+        $pid = $this->patterns->addPattern('n-sight', 'Fehlerbericht - {kunde}, {standort}, {geraet}');
+        $id  = $this->addMessage('Fehlerbericht - Initech HH, Cloud, banking01');
+        $this->assertNotNull($this->db->table('messages')->where('id', $id)->get()->getRowArray()['subject_unknown']);
+
+        $this->assertStringContainsString('<tr class="editing">', $this->as('rw')->get('patterns?edit=' . $pid)->getBody());
+        $this->as('rw')->post('patterns/' . $pid, ['source' => 'n-sight', 'pattern' => 'Fehlerbericht - {kunde}, {standort}, {geraet?}'])->assertRedirect();
+        $this->assertSame('Fehlerbericht - {kunde}, {standort}, {geraet?}', $this->db->table('subject_patterns')->where('id', $pid)->get()->getRowArray()['pattern']);
+        $this->runner->processBatch();
+        $this->assertArrayHasKey('kunde:initech', $this->tagsOf($id));
+
+        // switched off: kept, but not applied any more
+        $this->as('rw')->post('patterns/' . $pid . '/toggle', ['enabled' => '0'])->assertRedirect();
+        $this->runner->processBatch();
+        $this->assertSame(['kunde:acme' => 'address', 'source:n-sight' => 'address'], $this->tagsOf($id));
+        $this->assertNull($this->db->table('messages')->where('id', $id)->get()->getRowArray()['subject_pattern_id']);
+        $this->as('rw')->get('patterns')->assertSee('inaktiv');
+        $this->as('rw')->post('patterns/' . $pid . '/toggle', ['enabled' => '1'])->assertRedirect();
+        $this->runner->processBatch();
+        $this->assertArrayHasKey('kunde:initech', $this->tagsOf($id));
+
+        $this->as('ro')->post('patterns/' . $pid . '/toggle', ['enabled' => '0'])->assertStatus(403);
+        $this->as('rw')->post('patterns/' . $pid, ['source' => 'n-sight', 'pattern' => 'kein Platzhalter'])->assertSessionHas('error');
+    }
+
     public function testUnknownDeviceCanBeCreatedFromTheList(): void
     {
         $this->patterns->addPattern('n-sight', 'Fehlerbericht - {kunde}, {standort}, {geraet}');

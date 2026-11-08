@@ -30,14 +30,14 @@ class PatternService
     public function patternsBySource(): array
     {
         $out = [];
-        foreach ($this->db->table('subject_patterns')->select('id, source, pattern')->orderBy('id')->get()->getResultArray() as $p) {
+        foreach ($this->db->table('subject_patterns')->select('id, source, pattern')->where('enabled', 1)->orderBy('id')->get()->getResultArray() as $p) {
             $out[$p['source']][] = ['id' => (int) $p['id'], 'pattern' => $p['pattern']];
         }
 
         return $out;
     }
 
-    /** @return list<array{id: int, source: string, pattern: string, messages: int, unknown: int}> */
+    /** @return list<array{id: int, source: string, pattern: string, enabled: bool, messages: int, unknown: int}> */
     public function patterns(): array
     {
         $counts = [];
@@ -50,6 +50,7 @@ class PatternService
             'id'       => (int) $p['id'],
             'source'   => $p['source'],
             'pattern'  => $p['pattern'],
+            'enabled'  => (bool) $p['enabled'],
             'messages' => (int) ($counts[(int) $p['id']]['n'] ?? 0),
             'unknown'  => (int) ($counts[(int) $p['id']]['u'] ?? 0),
         ], $this->db->table('subject_patterns')->orderBy('source')->orderBy('id')->get()->getResultArray());
@@ -67,19 +68,54 @@ class PatternService
 
     public function addPattern(string $source, string $pattern): int
     {
-        $source = strtolower(trim($source));
-        if (! in_array($source, $this->sources(), true)) {
-            throw new InvalidArgumentException('source');
-        }
-        $pattern = SubjectPattern::normalize($pattern);
-        if ($this->db->table('subject_patterns')->where(['source' => $source, 'pattern' => $pattern])->countAllResults() > 0) {
-            throw new InvalidArgumentException('pattern_exists');
-        }
+        [$source, $pattern] = $this->validPattern($source, $pattern, null);
         $this->db->table('subject_patterns')->insert(['source' => $source, 'pattern' => $pattern, 'created_at' => gmdate('Y-m-d H:i:s')]);
         $id = (int) $this->db->insertID();
         $this->runner->bumpVersion();
 
         return $id;
+    }
+
+    /** Change source and text of a pattern; its messages are evaluated again. */
+    public function updatePattern(int $id, string $source, string $pattern): void
+    {
+        $this->pattern($id);
+        [$source, $pattern] = $this->validPattern($source, $pattern, $id);
+        $this->db->table('subject_patterns')->where('id', $id)->update(['source' => $source, 'pattern' => $pattern, 'updated_at' => gmdate('Y-m-d H:i:s')]);
+        $this->runner->bumpVersion();
+    }
+
+    /** Switch a pattern on or off (off: kept, but not applied). */
+    public function setEnabled(int $id, bool $enabled): void
+    {
+        $this->pattern($id);
+        $this->db->table('subject_patterns')->where('id', $id)->update(['enabled' => $enabled ? 1 : 0, 'updated_at' => gmdate('Y-m-d H:i:s')]);
+        $this->runner->bumpVersion();
+    }
+
+    /** @return array{id: int, source: string, pattern: string, enabled: int} */
+    private function pattern(int $id): array
+    {
+        return $this->db->table('subject_patterns')->where('id', $id)->get()->getRowArray() ?? throw new InvalidArgumentException('pattern_id');
+    }
+
+    /** @return array{0: string, 1: string} normalized source and pattern */
+    private function validPattern(string $source, string $pattern, ?int $id): array
+    {
+        $source = strtolower(trim($source));
+        if (! in_array($source, $this->sources(), true)) {
+            throw new InvalidArgumentException('source');
+        }
+        $pattern = SubjectPattern::normalize($pattern);
+        $dup     = $this->db->table('subject_patterns')->where(['source' => $source, 'pattern' => $pattern]);
+        if ($id !== null) {
+            $dup->where('id !=', $id);
+        }
+        if ($dup->countAllResults() > 0) {
+            throw new InvalidArgumentException('pattern_exists');
+        }
+
+        return [$source, $pattern];
     }
 
     public function deletePattern(int $id): void

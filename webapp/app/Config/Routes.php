@@ -73,6 +73,8 @@ $routes->post('addresses/map/(:num)/delete', 'Addresses::unmap/$1');
 $routes->get('patterns', 'Patterns::index');
 $routes->post('patterns', 'Patterns::add');
 $routes->post('patterns/(:num)/delete', 'Patterns::delete/$1');
+$routes->post('patterns/(:num)', 'Patterns::update/$1');
+$routes->post('patterns/(:num)/toggle', 'Patterns::toggle/$1');
 $routes->post('patterns/aliases', 'Patterns::addAlias');
 $routes->post('patterns/aliases/(:num)/delete', 'Patterns::deleteAlias/$1');
 $routes->post('patterns/create', 'Patterns::create');

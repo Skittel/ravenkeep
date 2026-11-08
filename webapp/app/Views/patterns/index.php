@@ -14,6 +14,7 @@
  * @var array{source: string, subject: string, pattern: string} $testInput
  * @var string|null $testError
  * @var int $backlog
+ * @var int $editPattern id of the pattern being edited (0 = none)
  */
 use App\Libraries\Rules\SubjectPattern;
 
@@ -40,16 +41,32 @@ $devicesOf   = static fn (int $customerId): array => array_values(array_filter($
             <p class="muted"><?= lang('Patterns.none') ?></p>
         <?php else: ?>
             <table class="grid patterns">
-                <thead><tr><th><?= lang('Patterns.source') ?></th><th><?= lang('Patterns.pattern') ?></th><th class="num"><?= lang('Patterns.messages') ?></th><th class="num"><?= lang('Patterns.unknownCount') ?></th><th></th></tr></thead>
+                <thead><tr><th><?= lang('Patterns.source') ?></th><th><?= lang('Patterns.pattern') ?></th><th><?= lang('Patterns.status') ?></th><th class="num"><?= lang('Patterns.messages') ?></th><th class="num"><?= lang('Patterns.unknownCount') ?></th><th></th></tr></thead>
                 <tbody>
                 <?php foreach ($patterns as $p): ?>
-                    <tr>
+                    <?php if ($editPattern === $p['id']): ?>
+                    <tr class="editing"><td colspan="6">
+                        <?= form_open('patterns/' . $p['id'], ['class' => 'rule-form pattern-form']) ?>
+                            <?= $sourceSelect($p['source']) ?>
+                            <input type="text" name="pattern" maxlength="255" required value="<?= esc($p['pattern'], 'attr') ?>">
+                            <button type="submit" class="button button-primary"><?= lang('Patterns.save') ?></button>
+                            <a class="button" href="<?= site_url('patterns') ?>"><?= lang('Rules.cancel') ?></a>
+                        <?= form_close() ?>
+                    </td></tr>
+                    <?php else: ?>
+                    <tr class="<?= $p['enabled'] ? '' : 'pattern-off' ?>">
                         <td><span class="<?= rk_tag_class('source:' . $p['source']) ?>"><?= esc($p['source']) ?></span></td>
                         <td><code><?= esc($p['pattern']) ?></code></td>
+                        <td><?= $p['enabled'] ? lang('Patterns.active') : '<span class="muted">' . lang('Patterns.inactive') . '</span>' ?></td>
                         <td class="num"><?= $p['messages'] ?></td>
                         <td class="num"><?= $p['unknown'] ?></td>
-                        <td class="write-only"><?= form_open('patterns/' . $p['id'] . '/delete', ['class' => 'inline', 'data-confirm' => lang('Patterns.confirmDelete')]) ?><button type="submit" class="button"><?= lang('Patterns.delete') ?></button><?= form_close() ?></td>
+                        <td class="write-only pattern-actions">
+                            <a class="button" href="<?= site_url('patterns') ?>?edit=<?= $p['id'] ?>"><?= lang('Patterns.edit') ?></a>
+                            <?= form_open('patterns/' . $p['id'] . '/toggle', ['class' => 'inline']) ?><?= form_hidden('enabled', $p['enabled'] ? '0' : '1') ?><button type="submit" class="button"><?= lang($p['enabled'] ? 'Patterns.disable' : 'Patterns.enable') ?></button><?= form_close() ?>
+                            <?= form_open('patterns/' . $p['id'] . '/delete', ['class' => 'inline', 'data-confirm' => lang('Patterns.confirmDelete')]) ?><button type="submit" class="button"><?= lang('Patterns.delete') ?></button><?= form_close() ?>
+                        </td>
                     </tr>
+                    <?php endif ?>
                 <?php endforeach ?>
                 </tbody>
             </table>
